@@ -1,0 +1,24 @@
+{
+  "name": "rest-api",
+  "version": "1.0.0",
+  "description": "Neura rest api official",
+  "keywords": [
+    "Restapi"
+  ],
+  "license": "MIT",
+  "author": "dimasyoga42",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "nodemon main.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "axios": "^1.13.6",
+    "body-parser": "^2.2.2",
+    "chlak": "^0.0.1-security",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "nodemon": "^3.1.14"
+  }
+}
