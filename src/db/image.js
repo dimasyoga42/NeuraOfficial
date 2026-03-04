@@ -48,4 +48,46 @@ export const waifu = [
     art: "彩ゆき",
     source: "https://www.pixiv.net/en/artworks/139064727",
   },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/01/20/13/45/141786129_p0_master1200.jpg",
+    NameImage: "Bocchi/Kita",
+    art: "はる🌸",
+    source: "https://www.pixiv.net/en/artworks/141786129",
+  },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/02/20/31/40/141827012_p0_master1200.jpg",
+    NameImage: "yui hirasawa",
+    art: "はる🌸",
+    source: "https://www.pixiv.net/en/artworks/141827012",
+  },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/05/06/00/15/141920458_p0_master1200.jpg",
+    NameImage: "Rice Shower",
+    art: "にょーん(Nyoon)",
+    source: "https://www.pixiv.net/en/artworks/141920458",
+  },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/05/05/24/40/141919929_p0_master1200.jpg",
+    NameImage: "-",
+    art: "おえかきおじさん",
+    source: "https://www.pixiv.net/en/artworks/141919929",
+  },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/05/04/44/58/141919419_p0_master1200.jpg",
+    NameImage: "Akane Kurokawa",
+    art: "Rice Farmer",
+    source: "https://www.pixiv.net/en/artworks/141919419",
+  },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/02/27/00/23/40/141670985_p0_master1200.jpg",
+    NameImage: "Kana Arima",
+    art: "JesusDiaz1986",
+    source: "https://www.pixiv.net/en/artworks/141670985",
+  },
 ];
