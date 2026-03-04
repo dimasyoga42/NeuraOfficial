@@ -1,4 +1,4 @@
-export const struckImg = (status, message, urlimage, source, art) => {
+export const struckImg = (status, message, urlimage, source, art, jumlah) => {
   return {
     result: {
       status,
@@ -8,6 +8,7 @@ export const struckImg = (status, message, urlimage, source, art) => {
       Url: urlimage,
       source: source,
       art: art,
+      jumlah,
     },
   };
 };

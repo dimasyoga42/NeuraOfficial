@@ -11,6 +11,7 @@ export const waifuGhaca = (req, res) => {
     data.urlImage,
     data.source,
     data.art,
+    data.length,
   );
   res.json(response);
 };
