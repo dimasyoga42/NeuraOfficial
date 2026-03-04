@@ -27,4 +27,25 @@ export const waifu = [
     art: "Poki",
     source: "https://www.pixiv.net/en/artworks/141187842",
   },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/01/16/40/07/141777559_p0_master1200.jpg",
+    NameImage: "hyouhakusha & Aemeath",
+    art: "めぐみん",
+    source: "https://www.pixiv.net/en/artworks/141777559#1",
+  },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/01/23/22/45/141795911_p0_master1200.jpg",
+    NameImage: "Yutori Natsu",
+    art: "Sijimiso",
+    source: "https://www.pixiv.net/en/artworks/141795911#1",
+  },
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2025/12/26/00/08/14/139064727_p0_master1200.jpg",
+    NameImage: "Yutori Natsu",
+    art: "彩ゆき",
+    source: "https://www.pixiv.net/en/artworks/139064727",
+  },
 ];

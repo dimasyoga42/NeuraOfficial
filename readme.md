@@ -1,19 +1,41 @@
 Neura Rest API
 ----
 
-official rest api dari Neura Sama menyediakan tools keperluan Toram Online dan Berbagai nya dengan gratis dan cepat
+Neura Rest API adalah layanan resmi yang disediakan oleh Neura Sama untuk memenuhi berbagai kebutuhan terkait Toram Online dan lainnya. API ini dapat digunakan secara gratis dan cepat.
 
-| path | Type | query | status |
-| ---- | ---- | ----- |--------|
-| Docs | Get  | None  | off    |
-| /api/ava| Get| None | off    |
-| /api/xtal&q=| Get| `Name`| off |
-| /api/ability&q=| Get| `name`| off |
-| /api/item&q= | Get | `name` | 0ff |
-| /api/waifu | Get | none | online |
-| /api/khodam | Get | none | 0ff |
-| /api/buff | Get | None | off |
-| /api/monster&q=&limit= | Get | `Name: String` `limit: Number` | 0ff |
-| /api/bosdif&q= | Get | `Name` | off |
-| /api/cuaca&q= | Get | `Desa / kab` | off |
-| /api/regis&q= | get | `name` | off |
+### Daftar Endpoint
+
+| Endpoint                | Metode | Parameter Query                     | Status   |
+|-------------------------|--------|-------------------------------------|----------|
+| `/docs`                | GET    | Tidak ada                          | Tidak Aktif |
+| `/api/toram/ava`             | GET    | Tidak ada                          | Aktif |
+| `/api/toram/xtal/q=`         | GET    | `name`                             | Aktif |
+| `/api/toram/ability/q=`      | GET    | `name`                             | Aktif |
+| `/api/toram/item/q=`         | GET    | `name`                             | Aktif |
+| `/api/etc/waifu`           | GET    | Tidak ada                          | Aktif       |
+| `/api/etc/khodam`          | GET    | Tidak ada                          | Tidak Aktif |
+| `/api/toram/buff`            | GET    | Tidak ada                          | Tidak Aktif |
+| `/api/toram/monster/q=&limit=` | GET  | `name: String`, `limit: Number`    | Tidak Aktif |
+| `/api/toram/bosdif/q=`       | GET    | `name`                             | Tidak Aktif |
+| `/api/etc/cuaca/q=`        | GET    | `desa/kabupaten`                   | Tidak Aktif |
+| `/api/toram/regis/q=`        | GET    | `name`                             | Tidak Aktif |
+| `/api/toram/appview/q=` | GET    | `name` | aktif |
+
+### Catatan
+- Data yang disediakan bersifat publik. Namun, harap mencantumkan sumber dengan menampilkan nama sumber pada hasil yang ditampilkan.
+
+### Contoh Output
+Berikut adalah contoh format output JSON yang dihasilkan oleh API:
+
+```json
+{
+  "result": {
+    "status": "success",
+    "dev": "dimasyoag42",
+    "source": "Neura Api Official",
+    "version": 1.0,
+    "message": "Pesan berhasil",
+    "data": []
+  }
+}
+```

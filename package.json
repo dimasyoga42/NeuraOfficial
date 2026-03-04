@@ -16,9 +16,12 @@
     "@supabase/supabase-js": "^2.98.0",
     "axios": "^1.13.6",
     "body-parser": "^2.2.2",
+    "cheerio": "^1.2.0",
     "chlak": "^0.0.1-security",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "node-fetch": "^3.3.2",
     "nodemon": "^3.1.14"
   }
 }
