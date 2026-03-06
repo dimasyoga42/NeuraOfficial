@@ -21,7 +21,8 @@ Neura Rest API adalah layanan resmi yang disediakan oleh Neura Sama untuk memenu
 | `/api/etc/cuaca/q=`        | GET    | `desa/kabupaten`                   | Tidak Aktif |
 | `/api/toram/regis/q=`        | GET    | `name`                             | Tidak Aktif |
 | `/api/toram/appview/q=` | GET    | `name` | aktif |
-| `spamadv/q=level=&exp=&max=&from=` | GET | `level`, `exp`, `max`, `form` | aktif |
+| `/api/toram/spamadv/q=level=&exp=&max=&from=` | GET | `level`, `exp`, `max`, `form` | aktif |
+| `/api/toram/dye` | GET | `tidak ada` | aktif |
 
 ### Catatan
 - Data yang disediakan bersifat publik. Namun, harap mencantumkan sumber dengan menampilkan nama sumber pada hasil yang ditampilkan.
