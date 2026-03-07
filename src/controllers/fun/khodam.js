@@ -1,7 +1,7 @@
 import { dbKhodamMegaCollection } from "../../db/khodam.js";
 import { status } from "../../utility/statuscode.js";
-import { struckRes } from "../../utility/struck";
-import { struckError } from "../../utility/struckError.js";
+import { struckRes } from "../../utility/struck.js";
+// import { struckError } from "../../utility/struckError.js";
 export const khodam = (req, res) => {
   try {
     const key = Math.floor(Math.random() * dbKhodamMegaCollection.length);
