@@ -5,7 +5,7 @@ import { struckError } from "../../utility/struckError.js";
 
 export const searchAbility = async (req, res) => {
   try {
-    const { name, limit } = req.params;
+    const { name, limit } = req.query;
     if (!name) {
       const nonvalid = struckError(status.bad, "Masukan nama ability", "-");
       return res.status(status.bad).json(nonvalid);

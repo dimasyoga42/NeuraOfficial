@@ -1,4 +1,5 @@
 import { status } from "../../utility/statuscode.js";
+import { struckRes } from "../../utility/struck.js";
 import { struckError } from "../../utility/struckError.js";
 
 const MQ = [
@@ -860,7 +861,7 @@ const needXP = (lvl) => {
 
 export const spamadv = (req, res) => {
   try {
-    const { lv, exp, lvmx, from } = req.params;
+    const { lv, exp, lvmx, from } = req.query;
 
     let level = Number(lv);
     const percent = Number(exp);
@@ -874,7 +875,9 @@ export const spamadv = (req, res) => {
       !Number.isInteger(targetLevel) ||
       !Number.isInteger(chapterFrom)
     ) {
-      return res.status(400).json({ success: false });
+      return res
+        .status(400)
+        .json(struckError(status.bad, "invalid value", "masukan value"));
     }
 
     if (level > MAX_LEVEL) level = MAX_LEVEL;
@@ -930,24 +933,22 @@ export const spamadv = (req, res) => {
 
     const xpNeededNow = level >= MAX_LEVEL ? maxLevelXPRef : needXP(level);
     const finalPercent = Math.floor((currentXP / xpNeededNow) * 100);
-
-    return res.status(200).json({
-      status: 200,
-      success: true,
-      data: {
-        startLevel,
-        startPercent,
-        targetLevel,
-        runs,
-        reachedTarget: level >= targetLevel,
-        finalLevel: level,
-        finalPercent,
-        finalExp: currentXP,
-        expToNextLevel: level >= MAX_LEVEL ? 0 : xpNeededNow - currentXP,
-        progress,
-      },
-    });
+    const data = {
+      startLevel,
+      startPercent,
+      targetLevel,
+      runs,
+      reachedTarget: level >= targetLevel,
+      finalLevel: level,
+      finalPercent,
+      finalExp: currentXP,
+      expToNextLevel: level >= MAX_LEVEL ? 0 : xpNeededNow - currentXP,
+      progress,
+    };
+    return res.status(200).json(struckRes(status.berhasil, "Spam Adv", data));
   } catch (err) {
-    return res.status(500).json({ success: false });
+    return res
+      .status(500)
+      .json(struckError(status.BadRequest, "error message", err.message));
   }
 };

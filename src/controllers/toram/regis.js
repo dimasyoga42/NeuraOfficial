@@ -5,7 +5,7 @@ import { struckError } from "../../utility/struckError.js";
 
 export const searchRegis = async (req, res) => {
   try {
-    const { name } = req.params;
+    const { name } = req.query;
     if (!name) {
       const nonvalid = struckError(status.bad, "Masukan nama regis", "-");
       return res.status(status.bad).json(nonvalid);

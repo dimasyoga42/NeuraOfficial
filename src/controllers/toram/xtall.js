@@ -5,7 +5,7 @@ import { struckError } from "../../utility/struckError.js";
 
 export const searchXtal = async (req, res) => {
   try {
-    const { name } = req.params;
+    const { name } = req.query;
     if (!name) {
       const nonvalid = struckError(status.bad, "Masukan nama xtal", "-");
       return res.status(status.bad).json(nonvalid);

@@ -4,7 +4,7 @@ import { struckError } from "../../utility/struckError.js";
 
 export const kerangAjaib = (req, res) => {
   try {
-    const { q } = req.params;
+    const { q } = req.query;
     if (!q)
       return res.json(
         struckError(status.bad, "data invalid", "masukan pertanyaan"),

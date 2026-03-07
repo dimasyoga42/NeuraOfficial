@@ -10,12 +10,12 @@ import { dye } from "../controllers/toram/dye.js";
 
 const toram = express.Router();
 
-toram.get("/item/q=:name&limit=:limit", searchItem);
-toram.get("/ability/q=:name", searchAbility);
-toram.get("/xtal/q=:name", searchXtal);
-toram.get("/regis/q=:name", searchRegis);
-toram.get("/appview/q=:name", searchApp);
+toram.get("/item", searchItem);
+toram.get("/ability", searchAbility);
+toram.get("/xtal", searchXtal);
+toram.get("/regis", searchRegis);
+toram.get("/appview", searchApp);
 toram.get("/ava", Banner);
 toram.get("/dye", dye);
-toram.get("/spamadv/q=level=:lv&exp=:exp&max=:lvmx&from=:from", spamadv);
+toram.get("/spamadv", spamadv);
 export default toram;

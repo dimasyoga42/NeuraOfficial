@@ -5,7 +5,7 @@ import { struckError } from "../../utility/struckError.js";
 
 export const searchItem = async (req, res) => {
   try {
-    const { name, limit } = req.params;
+    const { name, limit } = req.query;
     if (!name || !limit) {
       const nonvalid = struckError(status.bad, "Masukkan name dan limit", "-");
       return res.status(status.bad).json(nonvalid);
