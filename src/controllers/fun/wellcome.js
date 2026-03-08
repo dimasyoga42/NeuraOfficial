@@ -7,18 +7,12 @@ import path from "path";
 
 // ── KONFIGURASI FONT GOOGLE ──
 // Mendownload dan mendaftarkan font agar tidak muncul kotak-kotak di server
-const fontPath = path.resolve("./Inter-Bold.ttf");
+const fontPath = path.resolve("./Inter_28pt-Bold.ttf");
 const setupFont = async () => {
   try {
-    if (!fs.existsSync(fontPath)) {
-      const fontUrl =
-        "https://github.com/google/fonts/raw/main/ofl/inter/static/Inter-Bold.ttf";
-      const response = await axios.get(fontUrl, {
-        responseType: "arraybuffer",
-      });
-      fs.writeFileSync(fontPath, Buffer.from(response.data));
-    }
-    registerFont(fontPath, { family: "InterCustom" });
+    fs.writeFileSync(fontPath, Buffer.from(response.data));
+
+    registerFont(fontPath, { family: "Inter" });
   } catch (err) {
     console.error("Gagal memuat font Google:", err.message);
   }
@@ -63,7 +57,7 @@ const wellcome = async (req, res) => {
     // ── 2. NAMA GRUP (TENGAH) ──
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
-    ctx.font = "bold 90px InterCustom";
+    ctx.font = "bold 90px Inter";
     ctx.fillText(name, 1240, 480);
 
     // ── 3. FOOTER (BAR HITAM) ──
@@ -71,13 +65,8 @@ const wellcome = async (req, res) => {
 
     // Nomor Telepon (Kiri Bawah)
     ctx.textAlign = "left";
-    ctx.font = "bold 60px InterCustom";
+    ctx.font = "bold 60px Inter";
     ctx.fillText(phone, 780, 955);
-
-    // Nama Pengguna (Kanan Bawah - Tanpa Background)
-    ctx.textAlign = "right";
-    ctx.font = "bold 55px InterCustom";
-    ctx.fillText(name, 1920, 955);
 
     const buffer = canvas.toBuffer("image/png");
     res.setHeader("Content-Type", "image/png");
