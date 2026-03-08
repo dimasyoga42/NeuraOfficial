@@ -1,16 +1,45 @@
 import { status } from "../../utility/statuscode.js";
 import { struckError } from "../../utility/struckError.js";
-import { createCanvas, loadImage } from "canvas";
+import { createCanvas, loadImage, registerFont } from "canvas";
+import axios from "axios";
+import fs from "fs";
+import path from "path";
+
+// ── KONFIGURASI FONT GOOGLE ──
+// Mendownload dan mendaftarkan font agar tidak muncul kotak-kotak di server
+const fontPath = path.resolve("./Inter-Bold.ttf");
+const setupFont = async () => {
+  try {
+    if (!fs.existsSync(fontPath)) {
+      const fontUrl =
+        "https://github.com/google/fonts/raw/main/ofl/inter/static/Inter-Bold.ttf";
+      const response = await axios.get(fontUrl, {
+        responseType: "arraybuffer",
+      });
+      fs.writeFileSync(fontPath, Buffer.from(response.data));
+    }
+    registerFont(fontPath, { family: "InterCustom" });
+  } catch (err) {
+    console.error("Gagal memuat font Google:", err.message);
+  }
+};
+
+// Jalankan setup font saat inisialisasi file
+setupFont();
 
 const wellcome = async (req, res) => {
   try {
-    const { phone, name, image, group } = req.query;
+    // group: Teks tengah (bawah Wellcome)
+    // name: Teks kanan bawah (bar hitam)
+    // phone: Teks kiri bawah (bar hitam)
+    const { phone, name, image } = req.query;
+
     if (!phone || !name || !image) {
       return res.json(
         struckError(
           status.Forbidden,
           "invalid message",
-          "masukan phone name and image",
+          "masukan phone, name, and image",
         ),
       );
     }
@@ -28,29 +57,27 @@ const wellcome = async (req, res) => {
 
     // ── 1. AVATAR ──
     const avatar = await loadImage(image);
-    // Posisi disesuaikan agar pas di bingkai ungu sebelah kiri
-    const boxX = 110;
-    const boxY = 320;
-    const boxW = 340;
-    const boxH = 480;
-    ctx.drawImage(avatar, boxX, boxY, boxW, boxH);
+    // Posisi avatar pada bingkai ungu kiri
+    ctx.drawImage(avatar, 110, 320, 340, 480);
 
-    // ── 2. NAMA GRUP (TENGAH - DI BAWAH WELLCOME) ──
-    // Menutup placeholder "Welcome Group" bawaan background
+    // ── 2. NAMA GRUP (TENGAH) ──
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
-    ctx.font = "bold 90px Inter";
-    // Nama Grup diletakkan di tengah sesuai foto referensi
-    ctx.fillText(name, 1240, 485);
+    ctx.font = "bold 90px InterCustom";
+    ctx.fillText(name, 1240, 480);
 
-    // ── 3. FOOTER (BAR HITAM - HANYA PHONE & NAME) ──
-
-    // Nomor Telepon (Kiri Bawah di Bar Hitam)
-    ctx.textAlign = "left";
-    ctx.font = "bold 60px Inter";
+    // ── 3. FOOTER (BAR HITAM) ──
     ctx.fillStyle = "#ffffff";
-    // Diturunkan ke Y: 950 agar berada di dalam area hitam
+
+    // Nomor Telepon (Kiri Bawah)
+    ctx.textAlign = "left";
+    ctx.font = "bold 60px InterCustom";
     ctx.fillText(phone, 780, 955);
+
+    // Nama Pengguna (Kanan Bawah - Tanpa Background)
+    ctx.textAlign = "right";
+    ctx.font = "bold 55px InterCustom";
+    ctx.fillText(name, 1920, 955);
 
     const buffer = canvas.toBuffer("image/png");
     res.setHeader("Content-Type", "image/png");
