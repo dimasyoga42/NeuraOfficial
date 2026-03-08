@@ -6,26 +6,40 @@ import fs from "fs";
 import path from "path";
 
 // ── KONFIGURASI FONT GOOGLE ──
-// Mendownload dan mendaftarkan font agar tidak muncul kotak-kotak di server
 const fontPath = path.resolve("./Inter_28pt-Bold.ttf");
+
 const setupFont = async () => {
   try {
-    fs.writeFileSync(fontPath, Buffer.from(response.data));
+    // Cek dulu apakah font sudah ada, biar tidak download ulang tiap restart
+    if (fs.existsSync(fontPath)) {
+      registerFont(fontPath, { family: "Inter" });
+      console.log("Font dimuat dari cache lokal.");
+      return;
+    }
 
+    // ✅ FIX: Tambahkan axios.get() yang hilang + responseType arraybuffer
+    const response = await axios.get(
+      "https://github.com/google/fonts/raw/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf",
+      { responseType: "arraybuffer" },
+    );
+
+    fs.writeFileSync(fontPath, Buffer.from(response.data));
     registerFont(fontPath, { family: "Inter" });
+    console.log("Font berhasil didownload dan didaftarkan.");
   } catch (err) {
     console.error("Gagal memuat font Google:", err.message);
+    // Fallback: lanjut tanpa custom font (pakai font default canvas)
   }
 };
 
 // Jalankan setup font saat inisialisasi file
-setupFont();
+await setupFont();
 
 const wellcome = async (req, res) => {
   try {
-    // group: Teks tengah (bawah Wellcome)
-    // name: Teks kanan bawah (bar hitam)
-    // phone: Teks kiri bawah (bar hitam)
+    // phone : Teks kiri bawah (bar hitam)
+    // name  : Teks tengah (bawah Wellcome)
+    // image : URL foto profil / avatar
     const { phone, name, image } = req.query;
 
     if (!phone || !name || !image) {
@@ -43,7 +57,7 @@ const wellcome = async (req, res) => {
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
-    // Memuat Asset Background
+    // ── LOAD BACKGROUND ──
     const background = await loadImage(
       "https://i.ibb.co.com/4wNr50Sp/Wellcome.png",
     );
@@ -62,7 +76,6 @@ const wellcome = async (req, res) => {
 
     // ── 3. FOOTER (BAR HITAM) ──
     ctx.fillStyle = "#ffffff";
-
     // Nomor Telepon (Kiri Bawah)
     ctx.textAlign = "left";
     ctx.font = "bold 60px Inter";
