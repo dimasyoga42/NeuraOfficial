@@ -39,7 +39,7 @@ const wellcome = async (req, res) => {
     // Menutup placeholder "Welcome Group" bawaan background
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
-    ctx.font = "bold 90px Sans";
+    ctx.font = "bold 90px Inter";
     // Nama Grup diletakkan di tengah sesuai foto referensi
     ctx.fillText(name, 1240, 485);
 
@@ -47,7 +47,7 @@ const wellcome = async (req, res) => {
 
     // Nomor Telepon (Kiri Bawah di Bar Hitam)
     ctx.textAlign = "left";
-    ctx.font = "bold 60px Sans";
+    ctx.font = "bold 60px Inter";
     ctx.fillStyle = "#ffffff";
     // Diturunkan ke Y: 950 agar berada di dalam area hitam
     ctx.fillText(phone, 780, 955);
