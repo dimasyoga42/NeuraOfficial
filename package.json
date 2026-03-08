@@ -19,6 +19,7 @@
     "canvas": "^3.2.1",
     "cheerio": "^1.2.0",
     "chlak": "^0.0.1-security",
+    "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
