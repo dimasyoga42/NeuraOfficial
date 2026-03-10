@@ -1,5 +1,20 @@
 export const waifu = [
   {
+    NameImage: "",
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/11/03/19/23/142156718_p0_master1200.jpg",
+  },
+  {
+    NameImage: "Kazusa Kyoyama",
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/11/01/15/08/142154117_p0_master1200.jpg",
+  },
+  {
+    NameImage: "Natsume Iroha",
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/11/00/54/36/142153431_p0_master1200.jpg",
+  },
+  {
     urlImage:
       "https://i.pinimg.com/736x/0c/9e/86/0c9e86fce2d0fc90c99944e0f806cb1a.jpg",
     NameImage: "Elaina",
@@ -90,44 +105,32 @@ export const waifu = [
     art: "JesusDiaz1986",
     source: "https://www.pixiv.net/en/artworks/141670985",
   },
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
-  // {},
+  {
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/01/15/26/08/141775178_p0_master1200.jpg",
+    NameImage: "Ui Kozeki",
+    art: "aak486",
+    source: "https://www.pixiv.net/en/artworks/141775178",
+  },
+  {
+    NameImage: "Rio Tsukatsuki",
+    urlImage:
+      "https://i.pximg.net/img-master/img/2025/12/24/21/57/58/138999120_p0_master1200.jpg",
+    art: "aak486",
+    source: "https://www.pixiv.net/en/artworks/138999120",
+  },
+  {
+    NameImage: "Shenhe",
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/11/00/28/25/142152456_p0_master1200.jpg",
+    art: "八橋ななし",
+    source: "https://www.pixiv.net/en/artworks/142152456",
+  },
+  {
+    NameImage: "varesa",
+    urlImage:
+      "https://i.pximg.net/img-master/img/2026/03/10/21/32/32/142144264_p0_master1200.jpg",
+    art: "iroha",
+    source: "https://www.pixiv.net/en/artworks/142144264",
+  },
 ];
