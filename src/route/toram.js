@@ -8,6 +8,7 @@ import { Banner } from "../controllers/config/avacon.js";
 import { spamadv } from "../controllers/toram/spamadv.js";
 import { dye } from "../controllers/toram/dye.js";
 import handler from "../controllers/toram/filarm.js";
+import handlerWep from "../controllers/toram/filwep.js";
 const toram = express.Router();
 
 toram.get("/item", searchItem);
@@ -19,4 +20,5 @@ toram.get("/ava", Banner);
 toram.get("/dye", dye);
 toram.get("/spamadv", spamadv);
 toram.get("/filarm", handler);
+toram.get("/filwep", handlerWep);
 export default toram;
