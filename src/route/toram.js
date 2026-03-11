@@ -7,7 +7,7 @@ import { searchApp } from "../controllers/toram/appview.js";
 import { Banner } from "../controllers/config/avacon.js";
 import { spamadv } from "../controllers/toram/spamadv.js";
 import { dye } from "../controllers/toram/dye.js";
-import { filarm } from "../controllers/toram/filarm.js";
+import handler from "../controllers/toram/filarm.js";
 
 const toram = express.Router();
 
@@ -19,5 +19,5 @@ toram.get("/appview", searchApp);
 toram.get("/ava", Banner);
 toram.get("/dye", dye);
 toram.get("/spamadv", spamadv);
-toram.get("/filarm", filarm);
+toram.get("/filarm", handler);
 export default toram;
