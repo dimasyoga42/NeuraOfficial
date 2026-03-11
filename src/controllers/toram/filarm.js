@@ -1,12 +1,10 @@
-import axios from "axios";
-import * as cheerio from "cheerio";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
 const BASE_URL = "https://tanaka0.work/id/BouguProper";
 const DEFAULT_LEVEL = 280;
 const DEFAULT_POTENTIAL = 110;
 
-// ─── STAT MAP ─────────────────────────────────────────────────────────────────
 const statMap = {
   critdmg: "Critical Damage",
   cd: "Critical Damage",
@@ -78,7 +76,6 @@ const statMap = {
   dtedark: "% luka ke Gelap",
 };
 
-// ─── PARSE COMMAND TEXT ───────────────────────────────────────────────────────
 function parseCommand(text) {
   const config = {
     positiveStats: [],
@@ -88,296 +85,243 @@ function parseCommand(text) {
     profession: "NULL",
     professionLevel: 0,
   };
-
   const input = text.toLowerCase();
-
-  const lvMatch = input.match(/lv(\d+)/);
-  if (lvMatch) config.characterLevel = Math.min(500, Math.max(1, +lvMatch[1]));
-
-  const potMatch = input.match(/pot(\d+)/);
-  if (potMatch)
-    config.startingPotential = Math.min(200, Math.max(0, +potMatch[1]));
-
-  const profMatch = input.match(
+  const lvM = input.match(/lv(\d+)/);
+  if (lvM) config.characterLevel = Math.min(500, Math.max(1, +lvM[1]));
+  const potM = input.match(/pot(\d+)/);
+  if (potM) config.startingPotential = Math.min(200, Math.max(0, +potM[1]));
+  const profM = input.match(
     /(?:prof\s*[:=]?\s*(?:bs\s*[:=]?\s*)?|bs\s*[:=]?\s*)(\d+)/i,
   );
-  if (profMatch) {
+  if (profM) {
     config.profession = "BS";
-    config.professionLevel = +profMatch[1];
+    config.professionLevel = +profM[1];
   }
-
-  const parts = input.split(",").map((s) => s.trim());
-  for (const part of parts) {
+  for (const part of input.split(",").map((s) => s.trim())) {
     if (!part || /^(lv|pot|prof|bs|alchemist)\d*/.test(part)) continue;
-
     const m = part.match(/^([a-z%]+)\s*=\s*(.+)$/);
     if (!m) continue;
-
-    const [, key, val] = m;
-    const fullName = statMap[key];
+    const fullName = statMap[m[1]];
     if (!fullName) continue;
-
-    const isMin = val === "min";
-    const isMax = val === "max" || !isMin;
+    const isMin = m[2] === "min";
     const level = isMin
-      ? "0"
-      : val === "max"
+      ? "MIN"
+      : m[2] === "max"
         ? "MAX"
-        : String(parseInt(val, 10) || 1);
-    const obj = { name: fullName, level };
-
+        : String(parseInt(m[2], 10) || 1);
     if (isMin) {
-      if (config.negativeStats.length < 7) config.negativeStats.push(obj);
+      if (config.negativeStats.length < 7)
+        config.negativeStats.push({ name: fullName, level });
     } else {
-      if (config.positiveStats.length < 7) config.positiveStats.push(obj);
+      if (config.positiveStats.length < 7)
+        config.positiveStats.push({ name: fullName, level });
     }
   }
-
   return config;
 }
 
-// ─── FETCH FORM DEFAULTS (get option values for dropdowns) ────────────────────
-async function fetchFormDefaults() {
-  const { data } = await axios.get(BASE_URL, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    },
-    timeout: 20000,
+async function scrape(statConfig) {
+  const executablePath = await chromium.executablePath();
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath,
+    headless: chromium.headless,
   });
-
-  const $ = cheerio.load(data);
-  const defaults = {};
-
-  // Extract select option max values (for MAX stat levels)
-  for (let i = 0; i < 7; i++) {
-    const plusOpts = $(`#plus_value_${i} option`);
-    const minusOpts = $(`#minus_value_${i} option`);
-    defaults[`plus_max_${i}`] = plusOpts.last().val() || "10";
-    defaults[`minus_max_${i}`] = minusOpts.last().val() || "10";
-
-    // Also grab all options for profession level
-    const jukuOpts = $("#jukurendo option");
-    defaults.jukurendo_opts = jukuOpts.map((_, el) => $(el).val()).get();
-  }
-
-  // Get hidden fields / CSRF tokens if any
-  $("input[type=hidden]").each((_, el) => {
-    const name = $(el).attr("name");
-    const value = $(el).attr("value") || "";
-    if (name) defaults[name] = value;
-  });
-
-  return { $, defaults, html: data };
-}
-
-// ─── BUILD FORM PAYLOAD ───────────────────────────────────────────────────────
-function buildPayload(statConfig, defaults) {
-  const {
-    characterLevel,
-    startingPotential,
-    profession,
-    professionLevel,
-    positiveStats,
-    negativeStats,
-  } = statConfig;
-
-  const payload = new URLSearchParams();
-
-  payload.append("paramLevel", characterLevel);
-  payload.append("shokiSenzai", startingPotential);
-  payload.append("shokugyou", profession);
-
-  // Profession level - find closest option
-  if (professionLevel > 0 && defaults.jukurendo_opts?.length) {
-    const target = String(professionLevel);
-    const opt =
-      defaults.jukurendo_opts.find((v) => v === target) ||
-      defaults.jukurendo_opts.find((v) => v.includes(target)) ||
-      defaults.jukurendo_opts[defaults.jukurendo_opts.length - 1];
-    payload.append("jukurendo", opt);
-    payload.append("shokugyouLv", opt);
-  }
-
-  // Positive stats (slots 0–6)
-  for (let i = 0; i < 7; i++) {
-    const stat = positiveStats[i];
-    if (stat) {
-      payload.append(`plus_name_${i}`, stat.name);
-      const val =
-        stat.level === "MAX" ? defaults[`plus_max_${i}`] || "10" : stat.level;
-      payload.append(`plus_value_${i}`, val);
-    } else {
-      payload.append(`plus_name_${i}`, "");
-      payload.append(`plus_value_${i}`, "0");
-    }
-  }
-
-  // Negative stats (slots 0–6)
-  for (let i = 0; i < 7; i++) {
-    const stat = negativeStats[i];
-    if (stat) {
-      payload.append(`minus_name_${i}`, stat.name);
-      const val =
-        stat.level === "0" ? defaults[`minus_max_${i}`] || "10" : stat.level;
-      payload.append(`minus_value_${i}`, val);
-    } else {
-      payload.append(`minus_name_${i}`, "");
-      payload.append(`minus_value_${i}`, "0");
-    }
-  }
-
-  // Hidden fields (CSRF etc.)
-  Object.entries(defaults).forEach(([k, v]) => {
-    if (typeof v === "string" && !payload.has(k)) {
-      payload.append(k, v);
-    }
-  });
-
-  return payload;
-}
-
-// ─── PARSE HTML RESULT ────────────────────────────────────────────────────────
-function parseHtmlResult(html) {
-  const $ = cheerio.load(html);
-  const text = $.text() || $("body").text();
-
-  const match = (pattern) => {
-    const m = text.match(pattern);
-    return m ? m[1] : null;
-  };
-
-  // Success rate
-  const srRaw = match(/Success\s+Rate\s*[：:]\s*(\d+(?:\.\d+)?)\s*%/i);
-  const successRateValue = srRaw !== null ? parseFloat(srRaw) : null;
-
-  // Starting pot
-  const startingPot = match(/Starting\s+Pot[：:]\s*(\d+)\s*pt/i);
-
-  // Steps
-  const steps = text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => /^\d+\.\s/.test(l));
-
-  // Material cost
-  const mats = {};
-  ["Metal", "Cloth", "Beast", "Wood", "Medicine", "Mana"].forEach((mat) => {
-    const m = text.match(
-      new RegExp(`${mat}[：:]\\s*(\\d+(?:,\\d+)*)\\s*pt`, "i"),
+  try {
+    const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on("request", (req) => {
+      if (["image", "stylesheet", "font", "media"].includes(req.resourceType()))
+        req.abort();
+      else req.continue();
+    });
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     );
-    if (m && m[1] !== "0") mats[mat.toLowerCase()] = m[1];
-  });
-  const materialCost =
-    Object.entries(mats)
-      .map(([k, v]) => `${k[0].toUpperCase() + k.slice(1)}:${v}pt`)
-      .join(", ") || null;
+    await page.goto(BASE_URL, {
+      waitUntil: "domcontentloaded",
+      timeout: 25000,
+    });
 
-  // Highest step cost
-  const highestStepCost = match(
-    /Highest\s+mat(?:s|erial)?\s+per\s+step[：:]\s*([\d,]+(?:\.\d+)?)\s*pt/i,
-  );
+    // Reset form if button exists
+    await page.evaluate(() => {
+      const btn = [
+        ...document.querySelectorAll(
+          "button,input[type='button'],input[type='submit']",
+        ),
+      ].find((b) => /reload|reset/i.test(b.value || b.innerText || ""));
+      if (btn) btn.click();
+    });
 
-  // Reduction
-  const redM = text.match(/\((\d+%)\s*reduction\s*by\s*(\w+)\)/i);
-  const reduction = redM ? `${redM[1]} by ${redM[2]}` : null;
+    await page.waitForSelector("#paramLevel", { timeout: 10000 });
 
-  const hasValidResult =
-    successRateValue !== null &&
-    successRateValue >= 0 &&
-    successRateValue <= 100 &&
-    steps.length > 0;
+    const {
+      positiveStats,
+      negativeStats,
+      startingPotential,
+      characterLevel,
+      profession,
+      professionLevel,
+    } = statConfig;
 
-  return {
-    hasValidResult,
-    successRateValue,
-    successRate: successRateValue !== null ? `${successRateValue}%` : null,
-    startingPot: startingPot ? `${startingPot}pt` : null,
-    steps,
-    totalSteps: steps.length,
-    materialCost,
-    materialDetails: { ...mats, ...(reduction ? { reduction } : {}) },
-    highestStepCost: highestStepCost ? `${highestStepCost}pt` : null,
-    timestamp: new Date().toISOString(),
-  };
+    await page.evaluate(
+      ({ level, positive, negative, pot, prof, profLvl }) => {
+        const setVal = (sel, val) => {
+          const el = document.querySelector(sel);
+          if (!el) return;
+          el.focus();
+          el.value = String(val);
+          ["input", "change", "blur"].forEach((e) =>
+            el.dispatchEvent(new Event(e, { bubbles: true })),
+          );
+        };
+        const setSelectSmart = (sel, value) => {
+          const el = document.querySelector(sel);
+          if (!el) return;
+          const t = String(value);
+          const opt =
+            [...el.options].find((o) => o.value === t) ||
+            [...el.options].find((o) => o.textContent.trim().includes(t));
+          if (opt) {
+            el.value = opt.value;
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        };
+        const fillStat = (ns, vs, name, lvl) => {
+          setVal(ns, name);
+          const el = document.querySelector(vs);
+          if (!el) return;
+          if (lvl === "MAX" && el.options?.length)
+            setVal(vs, el.options[el.options.length - 1].value);
+          else if (lvl === "MIN" && el.options?.length)
+            setVal(vs, el.options[0].value);
+          else setVal(vs, lvl);
+        };
+        setVal("#paramLevel", level);
+        setVal("#shokiSenzai", pot);
+        const ps = document.querySelector("#shokugyou");
+        if (ps) {
+          ps.value = prof;
+          ps.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (profLvl > 0) {
+          setSelectSmart("#jukurendo", profLvl);
+          setSelectSmart("#shokugyouLv", profLvl);
+        }
+        positive.forEach((s, i) =>
+          fillStat(`#plus_name_${i}`, `#plus_value_${i}`, s.name, s.level),
+        );
+        negative.forEach((s, i) =>
+          fillStat(`#minus_name_${i}`, `#minus_value_${i}`, s.name, s.level),
+        );
+      },
+      {
+        level: characterLevel,
+        positive: positiveStats,
+        negative: negativeStats,
+        pot: startingPotential,
+        prof: profession,
+        profLvl: professionLevel,
+      },
+    );
+
+    await Promise.all([
+      page.click("#sendData"),
+      page.waitForFunction(
+        () =>
+          document.body.innerText.includes("Success Rate") &&
+          document.body.innerText.includes("Statting of Armor"),
+        { timeout: 25000 },
+      ),
+    ]);
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    return await page.evaluate(() => {
+      const text = document.body.innerText;
+      const match = (pat) => {
+        const m = text.match(pat);
+        return m ? m[1] : null;
+      };
+      const srRaw = match(/Success\s+Rate\s*[：:]\s*(\d+(?:\.\d+)?)\s*%/i);
+      const successRateValue = srRaw !== null ? parseFloat(srRaw) : null;
+      const startingPot = match(/Starting\s+Pot[：:]\s*(\d+)\s*pt/i);
+      const steps = text
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => /^\d+\.\s/.test(l));
+      const mats = {};
+      ["Metal", "Cloth", "Beast", "Wood", "Medicine", "Mana"].forEach((mat) => {
+        const m = text.match(
+          new RegExp(`${mat}[：:]\\s*(\\d+(?:,\\d+)*)\\s*pt`, "i"),
+        );
+        if (m && m[1] !== "0") mats[mat.toLowerCase()] = m[1];
+      });
+      const materialCost =
+        Object.entries(mats)
+          .map(([k, v]) => `${k[0].toUpperCase() + k.slice(1)}:${v}pt`)
+          .join(", ") || null;
+      const highestStepCost = match(
+        /Highest\s+mat(?:s|erial)?\s+per\s+step[：:]\s*([\d,]+(?:\.\d+)?)\s*pt/i,
+      );
+      const redM = text.match(/\((\d+%)\s*reduction\s*by\s*(\w+)\)/i);
+      return {
+        hasValidResult: successRateValue !== null && steps.length > 0,
+        successRateValue,
+        successRate: successRateValue !== null ? `${successRateValue}%` : null,
+        startingPot: startingPot ? `${startingPot}pt` : null,
+        steps,
+        totalSteps: steps.length,
+        materialCost,
+        materialDetails: {
+          ...mats,
+          ...(redM ? { reduction: `${redM[1]} by ${redM[2]}` } : {}),
+        },
+        highestStepCost: highestStepCost ? `${highestStepCost}pt` : null,
+        timestamp: new Date().toISOString(),
+      };
+    });
+  } finally {
+    await browser.close();
+  }
 }
 
-// ─── MAIN HANDLER (Vercel Serverless) ────────────────────────────────────────
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
-
   const { text } = req.query;
-
-  // ── Health / info route ──
-  if (!text) {
+  if (!text)
     return res.status(200).json({
       ok: true,
       service: "Toram Filarm API",
       endpoint: "GET /api/toram/filarm?text=<command>",
       syntax: "stat=level, lv<num>, pot<num>, bs<num>",
-      levels: "'max' = highest positive, 'min' = lowest negative, or a number",
+      levels: "max | min | number",
       examples: [
         "cd=max,acc=min,lv280,pot110",
         "atk%=max,cr=max,def%=min,lv300,pot120,bs300",
-        "matk%=max,int%=max,cspd%=max,mp%=max,aspd=min,lv280,pot100",
       ],
       availableStats: statMap,
     });
-  }
-
   const start = Date.now();
-
   try {
     const statConfig = parseCommand(text);
-
-    if (
-      statConfig.positiveStats.length === 0 &&
-      statConfig.negativeStats.length === 0
-    ) {
-      return res.status(400).json({
-        ok: false,
-        error: "No valid stats found. Check your stat keys.",
-        availableKeys: Object.keys(statMap),
-      });
-    }
-
-    // 1. Fetch page to get form defaults (select options, hidden fields)
-    const { defaults } = await fetchFormDefaults();
-
-    // 2. Build and POST the form
-    const payload = buildPayload(statConfig, defaults);
-
-    const { data: resultHtml } = await axios.post(BASE_URL, payload, {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Referer: BASE_URL,
-        Origin: "https://tanaka0.work",
-      },
-      timeout: 30000,
-      maxRedirects: 5,
-    });
-
-    // 3. Parse result
-    const result = parseHtmlResult(resultHtml);
+    if (!statConfig.positiveStats.length && !statConfig.negativeStats.length)
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          error: "No valid stats found.",
+          availableKeys: Object.keys(statMap),
+        });
+    const result = await scrape(statConfig);
     result.duration = Date.now() - start;
     result.inputConfig = statConfig;
-
-    if (!result.hasValidResult) {
-      // Return partial result with debug snippet
-      result.debug = resultHtml.substring(0, 1000);
-    }
-
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: err.message,
-      duration: Date.now() - start,
-    });
+    return res
+      .status(500)
+      .json({ ok: false, error: err.message, duration: Date.now() - start });
   }
 }
