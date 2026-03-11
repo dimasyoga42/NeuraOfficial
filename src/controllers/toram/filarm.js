@@ -1,4 +1,3 @@
-import express from "express";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
@@ -402,7 +401,7 @@ async function parseResults(page) {
 }
 
 // ─── ROUTE: GET /api/toram/filarm ─────────────────────────────────────────────
-app.get("/api/toram/filarm", async (req, res) => {
+export const filarm = async (req, res) => {
   const text = req.query.text;
 
   if (!text) {
@@ -443,4 +442,4 @@ app.get("/api/toram/filarm", async (req, res) => {
       duration: Date.now() - start,
     });
   }
-});
+};
