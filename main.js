@@ -6,7 +6,7 @@ import toram from "./src/route/toram.js";
 import cors from "cors";
 dotenv.config();
 
-const Port = process.env.PORT || 3000;
+const Port = process.env.PORT || 2120;
 const app = express();
 app.use(
   cors({
