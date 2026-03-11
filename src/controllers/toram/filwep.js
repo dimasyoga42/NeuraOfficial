@@ -104,6 +104,12 @@ const statMap = {
   evasion: "Evasion Rate %",
   aggro: "Aggro %",
   "aggro%": "Aggro %",
+  elefire: "Unsur Api (no matching)",
+  elewater: "Unsur Air (no matching)",
+  elewind: "Unsur Angin (no matching)",
+  eledark: "Unsur gelap (no matching)",
+  eleearth: "Unsur Bumi (no matching)",
+  eleligth: "Unsur Cahaya (no matching)",
 };
 
 // Max levels per stat name
