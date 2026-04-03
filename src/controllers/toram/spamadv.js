@@ -851,6 +851,41 @@ const MQ = [
     episode: 122,
     exp: 222200000,
   },
+  {
+    title: "Unda's Return",
+    boss: "Goudvis",
+    chapter: 15,
+    episode: 123,
+    exp: 228100000,
+  },
+  {
+    title: "The Young Man and The Old Tree",
+    boss: "Puiet",
+    chapter: 15,
+    episode: 124,
+    exp: 234000000,
+  },
+  {
+    title: "The Village of Lixis",
+    boss: "Gioco",
+    chapter: 15,
+    episode: 125,
+    exp: 240000000,
+  },
+  {
+    title: "Visions of a Distant Past",
+    boss: "Baratok",
+    chapter: 15,
+    episode: 126,
+    exp: 246000000,
+  },
+  {
+    title: "As the Roots Come to Light",
+    boss: " Doy & Mari",
+    chapter: 15,
+    episode: 127,
+    exp: 252100000,
+  },
 ];
 
 const MAX_LEVEL = 315;
