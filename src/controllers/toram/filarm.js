@@ -132,12 +132,12 @@ const statMaxLevel = {
   Dodge: 17,
   "Dodge %": 7,
   "Aggro %": 21,
-  "% luka ke Api": 23,
-  "% luka ke Air": 23,
-  "% luka ke Angin": 23,
-  "% luka ke Bumi": 23,
-  "% luka ke Cahaya": 23,
-  "% luka ke Gelap": 23,
+  "% luka ke Api": 24,
+  "% luka ke Air": 24,
+  "% luka ke Angin": 24,
+  "% luka ke Bumi": 24,
+  "% luka ke Cahaya": 24,
+  "% luka ke Gelap": 24,
 };
 
 // ─── PARSE COMMAND ────────────────────────────────────────────────────────────
