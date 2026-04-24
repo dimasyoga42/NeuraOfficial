@@ -888,7 +888,7 @@ const MQ = [
   },
 ];
 
-const MAX_LEVEL = 315;
+const MAX_LEVEL = 320;
 
 const needXP = (lvl) => {
   return Math.floor(0.025 * lvl ** 4 + 2 * lvl);
