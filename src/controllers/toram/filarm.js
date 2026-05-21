@@ -197,6 +197,7 @@ function parseCommand(text) {
   const input = text.toLowerCase();
 
   const lvMatch = input.match(/lv(\d+)/);
+
   if (lvMatch) {
     config.characterLevel = Math.min(
       350,
@@ -205,6 +206,7 @@ function parseCommand(text) {
   }
 
   const potMatch = input.match(/pot(\d+)/);
+
   if (potMatch) {
     config.startingPotential = Math.min(
       180,
@@ -213,6 +215,7 @@ function parseCommand(text) {
   }
 
   const rpotMatch = input.match(/rpot(\d+)/);
+
   if (rpotMatch) {
     config.recipePotential = Math.min(
       180,
@@ -221,6 +224,7 @@ function parseCommand(text) {
   }
 
   const bsMatch = input.match(/(?:bs|prof)(\d+)/);
+
   if (bsMatch) {
     config.professionLevel = Math.min(
       400,
@@ -238,7 +242,9 @@ function parseCommand(text) {
       continue;
     }
 
-    const match = part.match(/^([a-z%]+)\s*=\s*(.+)$/);
+    const match = part.match(
+      /^([a-z%]+)\s*=\s*(.+)$/
+    );
 
     if (!match) continue;
 
@@ -249,13 +255,16 @@ function parseCommand(text) {
     if (Array.isArray(fullName)) {
       fullName =
         fullName[
-          Math.floor(Math.random() * fullName.length)
+          Math.floor(
+            Math.random() * fullName.length
+          )
         ];
     }
 
     const value = match[2];
 
-    const maxLv = statMaxLevel[fullName] || 32;
+    const maxLv =
+      statMaxLevel[fullName] || 32;
 
     let level;
 
@@ -267,20 +276,27 @@ function parseCommand(text) {
       level = String(
         Math.min(
           maxLv,
-          Math.max(0, Number(value) || 0)
+          Math.max(
+            0,
+            Number(value) || 0
+          )
         )
       );
     }
 
     if (value === "min") {
-      if (config.negativeStats.length < 7) {
+      if (
+        config.negativeStats.length < 7
+      ) {
         config.negativeStats.push({
           name: fullName,
           level,
         });
       }
     } else {
-      if (config.positiveStats.length < 7) {
+      if (
+        config.positiveStats.length < 7
+      ) {
         config.positiveStats.push({
           name: fullName,
           level,
@@ -297,17 +313,18 @@ async function launchBrowser() {
 
   for (const executablePath of CHROME_PATHS) {
     try {
-      const browser = await puppeteer.launch({
-        headless: true,
-        executablePath,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--disable-extensions",
-        ],
-      });
+      const browser =
+        await puppeteer.launch({
+          headless: true,
+          executablePath,
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-extensions",
+          ],
+        });
 
       return browser;
     } catch (err) {
@@ -318,11 +335,55 @@ async function launchBrowser() {
   throw lastError;
 }
 
+async function setNativeValue(
+  page,
+  selector,
+  value
+) {
+  await page.evaluate(
+    ({ selector, value }) => {
+      const el =
+        document.querySelector(selector);
+
+      if (!el) return;
+
+      const prototype =
+        Object.getPrototypeOf(el);
+
+      const descriptor =
+        Object.getOwnPropertyDescriptor(
+          prototype,
+          "value"
+        );
+
+      descriptor.set.call(el, value);
+
+      el.dispatchEvent(
+        new Event("input", {
+          bubbles: true,
+        })
+      );
+
+      el.dispatchEvent(
+        new Event("change", {
+          bubbles: true,
+        })
+      );
+    },
+    {
+      selector,
+      value,
+    }
+  );
+}
+
 async function scrape(statConfig) {
-  const browser = await launchBrowser();
+  const browser =
+    await launchBrowser();
 
   try {
-    const page = await browser.newPage();
+    const page =
+      await browser.newPage();
 
     await page.setViewport({
       width: 1366,
@@ -338,80 +399,89 @@ async function scrape(statConfig) {
       timeout: 60000,
     });
 
-    await page.select(
-      'select[name="properBui"]',
-      "Armor"
+    await page.waitForSelector(
+      'input[name="paramLevel"]',
+      {
+        timeout: 60000,
+      }
     );
 
-    await page.evaluate((config) => {
-      const setValue = (selector, value) => {
-        const el = document.querySelector(selector);
+    await setNativeValue(
+      page,
+      'input[name="paramLevel"]',
+      String(statConfig.characterLevel)
+    );
 
-        if (!el) return;
+    await setNativeValue(
+      page,
+      'input[name="shokiSenzai"]',
+      String(
+        statConfig.startingPotential
+      )
+    );
 
-        el.value = value;
+    await setNativeValue(
+      page,
+      'input[name="kisoSenzai"]',
+      String(
+        statConfig.recipePotential
+      )
+    );
 
-        el.dispatchEvent(
-          new Event("change", {
-            bubbles: true,
-          })
-        );
-      };
+    const profLevel =
+      Math.round(
+        statConfig.professionLevel / 10
+      ) * 10;
 
-      setValue(
-        'input[name="paramLevel"]',
-        String(config.characterLevel)
+    await page.select(
+      'select[name="jukurendo"]',
+      String(profLevel)
+    );
+
+    for (let i = 0; i < 7; i++) {
+      const plus =
+        statConfig.positiveStats[i];
+
+      if (!plus) continue;
+
+      await page.select(
+        `select[name="plusProperList[${i}].properName"]`,
+        plus.name
       );
 
-      setValue(
-        'input[name="shokiSenzai"]',
-        String(config.startingPotential)
+      await page.select(
+        `select[name="plusProperList[${i}].properLvHyoji"]`,
+        plus.level
+      );
+    }
+
+    for (let i = 0; i < 7; i++) {
+      const minus =
+        statConfig.negativeStats[i];
+
+      if (!minus) continue;
+
+      await page.select(
+        `select[name="minusProperList[${i}].properName"]`,
+        minus.name
       );
 
-      setValue(
-        'input[name="kisoSenzai"]',
-        String(config.recipePotential)
+      await page.select(
+        `select[name="minusProperList[${i}].properLvHyoji"]`,
+        minus.level
       );
-
-      setValue(
-        'select[name="jukurendo"]',
-        String(
-          Math.round(config.professionLevel / 10) * 10
-        )
-      );
-
-      for (let i = 0; i < 7; i++) {
-        const plus = config.positiveStats[i];
-
-        setValue(
-          `select[name="plusProperList[${i}].properName"]`,
-          plus ? plus.name : ""
-        );
-
-        setValue(
-          `select[name="plusProperList[${i}].properLvHyoji"]`,
-          plus ? plus.level : "0"
-        );
-      }
-
-      for (let i = 0; i < 7; i++) {
-        const minus = config.negativeStats[i];
-
-        setValue(
-          `select[name="minusProperList[${i}].properName"]`,
-          minus ? minus.name : ""
-        );
-
-        setValue(
-          `select[name="minusProperList[${i}].properLvHyoji"]`,
-          minus ? minus.level : "0"
-        );
-      }
-    }, statConfig);
+    }
 
     const submitButton =
-      (await page.$('input[name="sendData"]')) ||
-      (await page.$('button[type="submit"]'));
+      (await page.$(
+        'input[name="sendData"]'
+      )) ||
+      (await page.$(
+        'input[type="submit"]'
+      )) ||
+      (await page.$(
+        'button[type="submit"]'
+      ));
 
     if (!submitButton) {
       throw new Error(
@@ -427,77 +497,99 @@ async function scrape(statConfig) {
       submitButton.click(),
     ]);
 
-    const result = await page.evaluate(() => {
-      const bodyText = document.body.innerText;
+    const result =
+      await page.evaluate(() => {
+        const bodyText =
+          document.body.innerText;
 
-      const match = (regex) => {
-        const m = bodyText.match(regex);
-        return m ? m[1] : null;
-      };
+        const match = (regex) => {
+          const m =
+            bodyText.match(regex);
 
-      const successRate = match(
-        /Success\s*Rate\s*[：:]\s*(\d+(?:[.,]\d+)?)\s*%/i
-      );
+          return m ? m[1] : null;
+        };
 
-      const startingPot = match(
-        /Starting\s*Pot\s*[：:]\s*(\d+)\s*pt/i
-      );
-
-      const highestStepCost = match(
-        /Highest\s+mats?\s+per\s+step\s*[：:]\s*([\d.,]+)\s*pt/i
-      );
-
-      const steps = bodyText
-        .split("\n")
-        .map((v) => v.trim())
-        .filter((v) => /^\d+\.\s+/.test(v));
-
-      const materials = {};
-
-      for (const mat of [
-        "Metal",
-        "Cloth",
-        "Beast",
-        "Wood",
-        "Medicine",
-        "Mana",
-      ]) {
-        const m = bodyText.match(
-          new RegExp(
-            `${mat}[：:]\\s*([\\d.,]+)\\s*pt`,
-            "i"
-          )
+        const successRate = match(
+          /Success\s*Rate\s*[：:]\s*(\d+(?:[.,]\d+)?)\s*%/i
         );
 
-        if (m && m[1] !== "0") {
-          materials[mat.toLowerCase()] = m[1];
+        const startingPot = match(
+          /Starting\s*Pot\s*[：:]\s*(\d+)\s*pt/i
+        );
+
+        const highestStepCost = match(
+          /Highest\s+mats?\s+per\s+step\s*[：:]\s*([\d.,]+)\s*pt/i
+        );
+
+        const steps = bodyText
+          .split("\n")
+          .map((v) => v.trim())
+          .filter((v) =>
+            /^\d+\.\s+/.test(v)
+          );
+
+        const materials = {};
+
+        for (const mat of [
+          "Metal",
+          "Cloth",
+          "Beast",
+          "Wood",
+          "Medicine",
+          "Mana",
+        ]) {
+          const m = bodyText.match(
+            new RegExp(
+              `${mat}[：:]\\s*([\\d.,]+)\\s*pt`,
+              "i"
+            )
+          );
+
+          if (
+            m &&
+            m[1] !== "0"
+          ) {
+            materials[
+              mat.toLowerCase()
+            ] = m[1];
+          }
         }
-      }
 
-      return {
-        successRate: successRate
-          ? `${parseFloat(
-              successRate.replace(",", ".")
-            )}%`
-          : null,
+        return {
+          successRate:
+            successRate !== null
+              ? `${parseFloat(
+                  successRate.replace(
+                    ",",
+                    "."
+                  )
+                )}%`
+              : null,
 
-        startingPot: startingPot
-          ? `${startingPot}pt`
-          : null,
+          startingPot:
+            startingPot !== null
+              ? `${startingPot}pt`
+              : null,
 
-        highestStepCost: highestStepCost
-          ? `${highestStepCost}pt`
-          : null,
+          highestStepCost:
+            highestStepCost !== null
+              ? `${highestStepCost}pt`
+              : null,
 
-        totalSteps: steps.length,
-        steps,
-        materials,
+          totalSteps:
+            steps.length,
 
-        hasValidResult:
-          successRate !== null &&
-          steps.length > 0,
-      };
-    });
+          steps,
+
+          materials,
+
+          hasValidResult:
+            successRate !== null &&
+            steps.length > 0,
+
+          raw: bodyText,
+        };
+      });
 
     return result;
   } finally {
@@ -505,8 +597,15 @@ async function scrape(statConfig) {
   }
 }
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+export default async function handler(
+  req,
+  res
+) {
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "*"
+  );
+
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, OPTIONS"
@@ -521,7 +620,8 @@ export default async function handler(req, res) {
   if (!text) {
     return res.status(200).json({
       ok: true,
-      service: "Toram Filarm API",
+      service:
+        "Toram Filarm API",
       endpoint:
         "/api/toram/filarm?text=<command>",
       example:
@@ -532,11 +632,14 @@ export default async function handler(req, res) {
   const start = Date.now();
 
   try {
-    const statConfig = parseCommand(text);
+    const statConfig =
+      parseCommand(text);
 
     if (
-      !statConfig.positiveStats.length &&
-      !statConfig.negativeStats.length
+      !statConfig.positiveStats
+        .length &&
+      !statConfig.negativeStats
+        .length
     ) {
       return res.status(400).json({
         ok: false,
@@ -545,11 +648,13 @@ export default async function handler(req, res) {
       });
     }
 
-    const result = await scrape(statConfig);
+    const result =
+      await scrape(statConfig);
 
     return res.status(200).json({
       ok: true,
-      duration: Date.now() - start,
+      duration:
+        Date.now() - start,
       inputConfig: statConfig,
       ...result,
     });
@@ -558,7 +663,8 @@ export default async function handler(req, res) {
       ok: false,
       error: err.message,
       stack: err.stack,
-      duration: Date.now() - start,
+      duration:
+        Date.now() - start,
     });
   }
 }
