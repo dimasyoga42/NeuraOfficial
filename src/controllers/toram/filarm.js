@@ -479,7 +479,9 @@ async function scrape(statConfig) {
       );
     }
 
-    await page.waitForTimeout(1500);
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1500)
+    );
 
     await page.evaluate(() => {
       const btn =
@@ -505,7 +507,9 @@ async function scrape(statConfig) {
       }
     );
 
-    await page.waitForTimeout(3000);
+    await new Promise((resolve) =>
+      setTimeout(resolve, 3000)
+    );
 
     const html =
       await page.content();
