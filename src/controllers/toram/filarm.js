@@ -395,20 +395,26 @@ function parseHtmlResult(html) {
     return r ? r[1] : null;
   };
 
-  const srRaw = m(/Success\s+Rate\s*[：:]\s*(\d+(?:\.\d+)?)\s*%/i);
-  const successRateValue = srRaw !== null ? parseFloat(srRaw) : null;
+  // Format asli Tanaka: "Success Rate:36%" — tanpa spasi sebelum titik dua
+  const srRaw = m(/Success\s*Rate\s*[：:]\s*(\d+(?:[.,]\d+)?)\s*%/i);
+  const successRateValue = srRaw !== null ? parseFloat(srRaw.replace(",", ".")) : null;
 
-  const startingPot = m(/Starting\s+Pot[：:]\s*(\d+)\s*pt/i);
+  // Format: "Starting Pot：65pt" — menggunakan titik dua fullwidth Jepang
+  const startingPot = m(/Starting\s*Pot\s*[：:]\s*(\d+)\s*pt/i);
 
+  // Format step di Tanaka: "1. Berikan ... （Sisa Pot：5pt)" 
+  // — nomor diikuti titik, lanjut teks, tutup dengan kurung fullwidth Jepang ）
+  // Ambil seluruh baris yang dimulai dengan angka + titik
   const steps = text
-    .split("\n")
+    .split(/\n/)
     .map((l) => l.trim())
-    .filter((l) => /^\d+\.\s/.test(l));
+    .filter((l) => /^\d+\.\s+\S/.test(l) && l.length > 5);
 
   const mats = {};
   ["Metal", "Cloth", "Beast", "Wood", "Medicine", "Mana"].forEach((mat) => {
+    // Format: "Metal:0pt" atau "Cloth:7,272pt"
     const r = text.match(
-      new RegExp(`${mat}[：:]\\s*(\\d+(?:,\\d+)*)\\s*pt`, "i")
+      new RegExp(`${mat}[：:]\\s*([\\d.,]+)\\s*pt`, "i")
     );
     if (r && r[1] !== "0") mats[mat.toLowerCase()] = r[1];
   });
@@ -418,10 +424,12 @@ function parseHtmlResult(html) {
       .map(([k, v]) => `${k[0].toUpperCase() + k.slice(1)}:${v}pt`)
       .join(", ") || null;
 
-  const highestM = m(
-    /Highest\s+mats?\s+per\s+step[：:]\s*([\d,]+(?:\.\d+)?)\s*pt/i
-  );
-  const redM = text.match(/\((\d+%)\s*reduction\s*by\s*(\w[^)]+)\)/i);
+  // Format: "Highest mats per step: 72.534 pt" — titik sebagai pemisah ribuan
+  const highestM = m(/Highest\s+mats?\s+per\s+step\s*[：:]\s*([\d.,]+)\s*pt/i);
+
+  // Format: "(30% reduction by PROF LV)" atau "(40% reduction by Anvils)"
+  const redMatches = [...text.matchAll(/\((\d+%)\s*reduction\s*by\s*([^)]+)\)/gi)];
+  const reductions = redMatches.map(r => `${r[1]} by ${r[2].trim()}`);
 
   return {
     hasValidResult: successRateValue !== null && steps.length > 0,
@@ -433,7 +441,7 @@ function parseHtmlResult(html) {
     materialCost,
     materialDetails: {
       ...mats,
-      ...(redM ? { reduction: `${redM[1]} by ${redM[2].trim()}` } : {}),
+      ...(reductions.length ? { reductions } : {}),
     },
     highestStepCost: highestM ? `${highestM}pt` : null,
     timestamp: new Date().toISOString(),
