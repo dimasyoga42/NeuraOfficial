@@ -457,6 +457,9 @@ async function scrape(statConfig) {
   });
   const $ = cheerio.load(getResp.data);
 
+  const csrfToken = $("input[name='csrf_token']").val() || "";
+  const sendToken = $("input[name='send_token']").val() || "";
+
   const payload = buildPayload($, statConfig);
 
   const postResp = await client.post(BASE_URL, payload.toString(), {
@@ -467,7 +470,19 @@ async function scrape(statConfig) {
     },
   });
 
-  return parseHtmlResult(postResp.data);
+  const rawHtml = postResp.data;
+  const result = parseHtmlResult(rawHtml);
+
+  // Debug: cari format exact Success Rate dan baris Berikan di raw HTML
+  result._debug = {
+    csrfTokenFound: csrfToken.length > 0,
+    sendTokenFound: sendToken.length > 0,
+    successRateRaw: (rawHtml.match(/Success.{0,5}Rate.{0,30}%/g) || []).slice(0, 5),
+    berikamLines: (rawHtml.match(/Berikan[^<]{0,200}/g) || []).slice(0, 10),
+    payloadKeys: payload.toString().split("&").map(p => p.split("=")[0]),
+  };
+
+  return result;
 }
 
 // ─── VERCEL HANDLER ───────────────────────────────────────────────────────────
