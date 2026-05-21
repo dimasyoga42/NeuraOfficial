@@ -348,41 +348,51 @@ function makeClient() {
 }
 
 // ─── BUILD FORM PAYLOAD ───────────────────────────────────────────────────────
+// PENTING: Tanaka butuh bracket literal [0] bukan %5B0%5D
+// Jadi kita build string query manual, bukan pakai URLSearchParams
+function encodeField(key, value) {
+  // Encode value tapi biarkan key apa adanya (bracket tidak di-encode)
+  return key + "=" + encodeURIComponent(value);
+}
+
 function buildPayload($, statConfig) {
-  const params = new URLSearchParams();
+  const parts = [];
 
-  params.append("properBui", "Armor");
-  params.append("csrf_token", $("input[name='csrf_token']").val() || "");
-  params.append("send_token", $("input[name='send_token']").val() || "");
+  parts.push(encodeField("properBui", "Armor"));
+  parts.push(encodeField("csrf_token", $("input[name='csrf_token']").val() || ""));
+  parts.push(encodeField("send_token", $("input[name='send_token']").val() || ""));
 
-  params.append("paramLevel", String(statConfig.characterLevel));
-  params.append("shokiSenzai", String(statConfig.startingPotential));
-  params.append("kisoSenzai", String(statConfig.recipePotential));
+  parts.push(encodeField("paramLevel", String(statConfig.characterLevel)));
+  parts.push(encodeField("shokiSenzai", String(statConfig.startingPotential)));
+  parts.push(encodeField("kisoSenzai", String(statConfig.recipePotential)));
 
   const profLvl = Math.round(statConfig.professionLevel / 10) * 10;
-  params.append("jukurendo", String(Math.min(400, Math.max(0, profLvl))));
+  parts.push(encodeField("jukurendo", String(Math.min(400, Math.max(0, profLvl)))));
 
-  params.append("rikaiKinzoku", String(statConfig.compassion.metal));
-  params.append("rikaiNunoti",  String(statConfig.compassion.cloth));
-  params.append("rikaiKemono",  String(statConfig.compassion.beast));
-  params.append("rikaiMokuzai", String(statConfig.compassion.wood));
-  params.append("rikaiYakuhin", String(statConfig.compassion.medicine));
-  params.append("rikaiMaso",    String(statConfig.compassion.mana));
+  parts.push(encodeField("rikaiKinzoku", String(statConfig.compassion.metal)));
+  parts.push(encodeField("rikaiNunoti",  String(statConfig.compassion.cloth)));
+  parts.push(encodeField("rikaiKemono",  String(statConfig.compassion.beast)));
+  parts.push(encodeField("rikaiMokuzai", String(statConfig.compassion.wood)));
+  parts.push(encodeField("rikaiYakuhin", String(statConfig.compassion.medicine)));
+  parts.push(encodeField("rikaiMaso",    String(statConfig.compassion.mana)));
 
   for (let i = 0; i < 7; i++) {
     const stat = statConfig.positiveStats[i];
-    params.append(`plusProperList[${i}].properName`,    stat ? stat.name  : "");
-    params.append(`plusProperList[${i}].properLvHyoji`, stat ? stat.level : "0");
+    parts.push(encodeField(`plusProperList[${i}].properName`,    stat ? stat.name  : ""));
+    parts.push(encodeField(`plusProperList[${i}].properLvHyoji`, stat ? stat.level : "0"));
   }
 
   for (let i = 0; i < 7; i++) {
     const stat = statConfig.negativeStats[i];
-    params.append(`minusProperList[${i}].properName`,    stat ? stat.name  : "");
-    params.append(`minusProperList[${i}].properLvHyoji`, stat ? stat.level : "0");
+    parts.push(encodeField(`minusProperList[${i}].properName`,    stat ? stat.name  : ""));
+    parts.push(encodeField(`minusProperList[${i}].properLvHyoji`, stat ? stat.level : "0"));
   }
 
-  params.append("sendData", "Submit");
-  return params;
+  parts.push(encodeField("sendData", "Submit"));
+
+  return {
+    toString() { return parts.join("&"); }
+  };
 }
 
 // ─── PARSE HTML RESULT ────────────────────────────────────────────────────────
@@ -452,15 +462,34 @@ function parseHtmlResult(html) {
 async function scrape(statConfig) {
   const client = makeClient();
 
+  // Step 1: GET untuk ambil halaman + set cookie session
   const getResp = await client.get(BASE_URL, {
     headers: { Referer: "https://tanaka0.work/id/" },
   });
-  const $ = cheerio.load(getResp.data);
+  const $get = cheerio.load(getResp.data);
 
-  const csrfToken = $("input[name='csrf_token']").val() || "";
-  const sendToken = $("input[name='send_token']").val() || "";
+  // Step 2: POST pertama dengan paramLevel saja (Reload) untuk mendapat
+  // csrf_token dan send_token yang valid dari server
+  const initPayload = [
+    "properBui=Armor",
+    "paramLevel=" + encodeURIComponent(String(statConfig.characterLevel)),
+    "lebelUpdate=Submit",
+  ].join("&");
 
-  const payload = buildPayload($, statConfig);
+  const initResp = await client.post(BASE_URL, initPayload, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Referer: BASE_URL,
+      Origin: "https://tanaka0.work",
+    },
+  });
+
+  const $init = cheerio.load(initResp.data);
+  const csrfToken = $init("input[name='csrf_token']").val() || "";
+  const sendToken = $init("input[name='send_token']").val() || "";
+
+  // Step 3: POST utama dengan semua stat + token yang valid
+  const payload = buildPayload($init, statConfig);
 
   const postResp = await client.post(BASE_URL, payload.toString(), {
     headers: {
@@ -471,18 +500,7 @@ async function scrape(statConfig) {
   });
 
   const rawHtml = postResp.data;
-  const result = parseHtmlResult(rawHtml);
-
-  // Debug: cari format exact Success Rate dan baris Berikan di raw HTML
-  result._debug = {
-    csrfTokenFound: csrfToken.length > 0,
-    sendTokenFound: sendToken.length > 0,
-    successRateRaw: (rawHtml.match(/Success.{0,5}Rate.{0,30}%/g) || []).slice(0, 5),
-    berikamLines: (rawHtml.match(/Berikan[^<]{0,200}/g) || []).slice(0, 10),
-    payloadKeys: payload.toString().split("&").map(p => p.split("=")[0]),
-  };
-
-  return result;
+  return parseHtmlResult(rawHtml);
 }
 
 // ─── VERCEL HANDLER ───────────────────────────────────────────────────────────
