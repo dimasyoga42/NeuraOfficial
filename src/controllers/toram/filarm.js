@@ -150,31 +150,31 @@ const statMaxLevel = {
   "Critical Damage": 24,
   "Critical Damage %": 12,
 
-  "ATK": 32,
+  ATK: 32,
   "ATK %": 16,
-  "MATK": 32,
+  MATK: 32,
   "MATK %": 16,
 
-  "STR": 32,
+  STR: 32,
   "STR %": 10,
-  "INT": 32,
+  INT: 32,
   "INT %": 10,
-  "VIT": 32,
+  VIT: 32,
   "VIT %": 10,
-  "AGI": 32,
+  AGI: 32,
   "AGI %": 10,
-  "DEX": 32,
+  DEX: 32,
   "DEX %": 10,
 
-  "DEF": 32,
+  DEF: 32,
   "DEF %": 14,
-  "MDEF": 32,
+  MDEF: 32,
   "MDEF %": 14,
 
-  "Accuracy": 18,
+  Accuracy: 18,
   "Accuracy %": 7,
 
-  "MaxMP": 21,
+  MaxMP: 21,
 
   "% luka ke Api": 24,
   "% luka ke Air": 24,
@@ -345,7 +345,7 @@ async function setNativeValue(
       const el =
         document.querySelector(selector);
 
-      if (!el) return;
+      if (!el) return false;
 
       const prototype =
         Object.getPrototypeOf(el);
@@ -369,6 +369,8 @@ async function setNativeValue(
           bubbles: true,
         })
       );
+
+      return true;
     },
     {
       selector,
@@ -395,7 +397,7 @@ async function scrape(statConfig) {
     );
 
     await page.goto(BASE_URL, {
-      waitUntil: "networkidle2",
+      waitUntil: "domcontentloaded",
       timeout: 60000,
     });
 
@@ -433,10 +435,18 @@ async function scrape(statConfig) {
         statConfig.professionLevel / 10
       ) * 10;
 
-    await page.select(
-      'select[name="jukurendo"]',
-      String(profLevel)
-    );
+    const profSelector =
+      'select[name="jukurendo"]';
+
+    const profExists =
+      await page.$(profSelector);
+
+    if (profExists) {
+      await page.select(
+        profSelector,
+        String(profLevel)
+      );
+    }
 
     for (let i = 0; i < 7; i++) {
       const plus =
@@ -444,13 +454,24 @@ async function scrape(statConfig) {
 
       if (!plus) continue;
 
+      const nameSelector =
+        `select[name="plusProperList[${i}].properName"]`;
+
+      const lvSelector =
+        `select[name="plusProperList[${i}].properLvHyoji"]`;
+
+      const exists =
+        await page.$(nameSelector);
+
+      if (!exists) continue;
+
       await page.select(
-        `select[name="plusProperList[${i}].properName"]`,
+        nameSelector,
         plus.name
       );
 
       await page.select(
-        `select[name="plusProperList[${i}].properLvHyoji"]`,
+        lvSelector,
         plus.level
       );
     }
@@ -461,13 +482,24 @@ async function scrape(statConfig) {
 
       if (!minus) continue;
 
+      const nameSelector =
+        `select[name="minusProperList[${i}].properName"]`;
+
+      const lvSelector =
+        `select[name="minusProperList[${i}].properLvHyoji"]`;
+
+      const exists =
+        await page.$(nameSelector);
+
+      if (!exists) continue;
+
       await page.select(
-        `select[name="minusProperList[${i}].properName"]`,
+        nameSelector,
         minus.name
       );
 
       await page.select(
-        `select[name="minusProperList[${i}].properLvHyoji"]`,
+        lvSelector,
         minus.level
       );
     }
@@ -489,13 +521,27 @@ async function scrape(statConfig) {
       );
     }
 
-    await Promise.all([
-      page.waitForNavigation({
-        waitUntil: "networkidle2",
+    await submitButton.click();
+
+    await page.waitForFunction(
+      () => {
+        const text =
+          document.body.innerText;
+
+        return (
+          text.includes(
+            "Success Rate"
+          ) ||
+          text.includes(
+            "Starting Pot"
+          ) ||
+          /^\d+\.\s/m.test(text)
+        );
+      },
+      {
         timeout: 60000,
-      }),
-      submitButton.click(),
-    ]);
+      }
+    );
 
     const result =
       await page.evaluate(() => {
