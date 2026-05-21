@@ -6,65 +6,104 @@ const DEFAULT_LEVEL = 320;
 const DEFAULT_POTENTIAL = 110;
 
 // ─── STAT MAP ─────────────────────────────────────────────────────────────────
+// Semua stat diambil langsung dari referensi tanaka0.work/id/BouguProper
 const statMap = {
-  critdmg: "Critical Damage",
-  cd: "Critical Damage",
-  "critdmg%": "Critical Damage %",
-  "cd%": "Critical Damage %",
-  critrate: "Critical Rate",
-  cr: "Critical Rate",
-  "critrate%": "Critical Rate %",
-  "cr%": "Critical Rate %",
-  atk: "ATK",
-  "atk%": "ATK %",
-  matk: "MATK",
-  "matk%": "MATK %",
-  def: "DEF",
-  "def%": "DEF %",
-  mdef: "MDEF",
-  "mdef%": "MDEF %",
-  acc: "Accuracy",
-  accuracy: "Accuracy",
-  "acc%": "Accuracy %",
-  "accuracy%": "Accuracy %",
-  hp: "MaxHP",
-  "hp%": "MaxHP %",
-  maxmp: "MaxMP",
-  "maxmp%": "MaxMP %",
-  "mp%": "Magic Pierce %",
-  str: "STR",
-  "str%": "STR %",
-  int: "INT",
-  "int%": "INT %",
-  vit: "VIT",
-  "vit%": "VIT %",
-  agi: "AGI",
-  "agi%": "AGI %",
-  dex: "DEX",
-  "dex%": "DEX %",
-  aspd: "Kecepatan Serangan",
-  "aspd%": "Kecepatan Serangan %",
-  cspd: "Kecepatan Merapal",
-  "cspd%": "Kecepatan Merapal %",
-  dodge: "Dodge",
-  "dodge%": "Dodge %",
-  hpreg: "Natural HP Regen",
-  "hpreg%": "Natural HP Regen %",
-  mpreg: "Natural MP Regen",
-  "mpreg%": "Natural MP Regen %",
-  stab: "Stability %",
-  "stab%": "Stability %",
-  penfis: "Penetrasi Fisik %",
-  "penfis%": "Penetrasi Fisik %",
-  "pp%": "Penetrasi Fisik %",
-  penmag: "Magic Pierce %",
-  "penmag%": "Magic Pierce %",
-  kebalfis: "Kekebalan Fisik %",
-  "kebalfis%": "Kekebalan Fisik %",
-  kebalmag: "Kekebalan Sihir %",
-  "kebalmag%": "Kekebalan Sihir %",
-  aggro: "Aggro %",
-  "aggro%": "Aggro %",
+  // ── Critical ──
+  critdmg:       "Critical Damage",
+  cd:            "Critical Damage",
+  "critdmg%":   "Critical Damage %",
+  "cd%":         "Critical Damage %",
+  critrate:      "Critical Rate",
+  cr:            "Critical Rate",
+  "critrate%":  "Critical Rate %",
+  "cr%":         "Critical Rate %",
+
+  // ── Attack ──
+  atk:           "ATK",
+  "atk%":        "ATK %",
+  matk:          "MATK",
+  "matk%":       "MATK %",
+  stab:          "Stability %",
+  "stab%":       "Stability %",
+  penfis:        "Penetrasi Fisik %",
+  "penfis%":     "Penetrasi Fisik %",
+  "pp%":         "Penetrasi Fisik %",
+  penmag:        "Magic Pierce %",
+  "penmag%":     "Magic Pierce %",
+  "mp%":         "Magic Pierce %",
+
+  // ── Speed ──
+  aspd:          "Kecepatan Serangan",
+  "aspd%":       "Kecepatan Serangan %",
+  cspd:          "Kecepatan Merapal",
+  "cspd%":       "Kecepatan Merapal %",
+
+  // ── Base Stats ──
+  str:           "STR",
+  "str%":        "STR %",
+  int:           "INT",
+  "int%":        "INT %",
+  vit:           "VIT",
+  "vit%":        "VIT %",
+  agi:           "AGI",
+  "agi%":        "AGI %",
+  dex:           "DEX",
+  "dex%":        "DEX %",
+
+  // ── HP/MP ──
+  hpreg:         "Natural HP Regen",
+  "hpreg%":      "Natural HP Regen %",
+  mpreg:         "Natural MP Regen",
+  "mpreg%":      "Natural MP Regen %",
+  hp:            "MaxHP",
+  "hp%":         "MaxHP %",
+  maxmp:         "MaxMP",
+
+  // ── Defense ──
+  def:           "DEF",
+  "def%":        "DEF %",
+  mdef:          "MDEF",
+  "mdef%":       "MDEF %",
+  kebalfis:      "Kekebalan Fisik %",
+  "kebalfis%":   "Kekebalan Fisik %",
+  kebalmag:      "Kekebalan Sihir %",
+  "kebalmag%":   "Kekebalan Sihir %",
+
+  // ── Reduce Dmg (dari referensi) ──
+  rdfoe:         "% Reduce Dmg (Foe Epicenter)",
+  rdfoeepi:      "% Reduce Dmg (Foe Epicenter)",
+  rdplayer:      "% Reduce Dmg (Player Epicenter)",
+  rdplayerepi:   "% Reduce Dmg (Player Epicenter)",
+  rdline:        "% Reduce Dmg (Straight Line)",
+  rdstraight:    "% Reduce Dmg (Straight Line)",
+  rdcharge:      "% Reduce Dmg (Charge)",
+  rdmeteor:      "% Reduce Dmg (Meteor)",
+  rdbullet:      "% Reduce Dmg (Bullet)",
+  rdbowling:     "% Reduce Dmg (Bowling)",
+  rdfloor:       "% Reduce Dmg (Floor)",
+
+  // ── Accuracy / Dodge ──
+  acc:           "Accuracy",
+  accuracy:      "Accuracy",
+  "acc%":        "Accuracy %",
+  "accuracy%":   "Accuracy %",
+  dodge:         "Dodge",
+  "dodge%":      "Dodge %",
+
+  // ── Damage to Element (DTE) ──
+  dteearth:      "% luka ke Bumi",
+  "dteearth%":   "% luka ke Bumi",
+  dtefire:       "% luka ke Api",
+  "dtefire%":    "% luka ke Api",
+  dtewind:       "% luka ke Angin",
+  "dtewind%":    "% luka ke Angin",
+  dtewater:      "% luka ke Air",
+  "dtewater%":   "% luka ke Air",
+  dtelight:      "% luka ke Cahaya",
+  "dtelight%":   "% luka ke Cahaya",
+  dtedark:       "% luka ke Gelap",
+  "dtedark%":    "% luka ke Gelap",
+  // shorthand dte% → random elemen
   "dte%": [
     "% luka ke Bumi",
     "% luka ke Api",
@@ -73,71 +112,128 @@ const statMap = {
     "% luka ke Cahaya",
     "% luka ke Gelap",
   ],
-  dteearth: "% luka ke Bumi",
-  "dteearth%": "% luka ke Bumi",
-  dtefire: "% luka ke Api",
-  "dtefire%": "% luka ke Api",
-  dtewind: "% luka ke Angin",
-  "dtewind%": "% luka ke Angin",
-  dtewater: "% luka ke Air",
-  "dtewater%": "% luka ke Air",
-  dtelight: "% luka ke Cahaya",
-  "dtelight%": "% luka ke Cahaya",
-  dtedark: "% luka ke Gelap",
-  "dtedark%": "% luka ke Gelap",
+
+  // ── Element Resist / Kebal (dari referensi) ──
+  kebalapi:      "kebal Api %",
+  "kebalapi%":   "kebal Api %",
+  resistfire:    "kebal Api %",
+  kebalair:      "kebal Air %",
+  "kebalair%":   "kebal Air %",
+  resistwater:   "kebal Air %",
+  kebalangin:    "kebal Angin %",
+  "kebalangin%": "kebal Angin %",
+  resistwind:    "kebal Angin %",
+  kebalbumi:     "kebal Bumi %",
+  "kebalbumi%":  "kebal Bumi %",
+  resistearth:   "kebal Bumi %",
+  kebalcahaya:   "kebal Cahaya %",
+  "kebalcahaya%":"kebal Cahaya %",
+  resistlight:   "kebal Cahaya %",
+  kebalgelap:    "kebal Gelap %",
+  "kebalgelap%": "kebal Gelap %",
+  resistdark:    "kebal Gelap %",
+
+  // ── Special Enhancement (dari referensi) ──
+  resistburuk:    "Resistensi Status Buruk %",
+  "resistburuk%": "Resistensi Status Buruk %",
+  sb:             "Resistensi Status Buruk %",
+  "sb%":          "Resistensi Status Buruk %",
+  guardpow:       "Guard Power %",
+  "guardpow%":    "Guard Power %",
+  gp:             "Guard Power %",
+  "gp%":          "Guard Power %",
+  guardrate:      "Guard Rate %",
+  "guardrate%":   "Guard Rate %",
+  gr:             "Guard Rate %",
+  "gr%":          "Guard Rate %",
+  evasion:        "Evasion Rate %",
+  "evasion%":     "Evasion Rate %",
+  er:             "Evasion Rate %",
+  "er%":          "Evasion Rate %",
+  aggro:          "Aggro %",
+  "aggro%":       "Aggro %",
 };
 
-// ─── STAT MAX LEVEL ───────────────────────────────────────────────────────────
+// ─── STAT MAX LEVEL (dikoreksi & dilengkapi dari referensi HTML tanaka) ──────
 const statMaxLevel = {
-  "Critical Rate": 32,
-  "Critical Rate %": 32,
-  "Critical Damage": 24,
-  "Critical Damage %": 12,
-  ATK: 32,
-  "ATK %": 16,
-  MATK: 32,
-  "MATK %": 16,
-  "Stability %": 7,
-  "Penetrasi Fisik %": 9,
-  "Magic Pierce %": 9,
-  "Kecepatan Serangan": 31,
-  "Kecepatan Serangan %": 22,
-  "Kecepatan Merapal": 31,
-  "Kecepatan Merapal %": 22,
-  STR: 32,
-  "STR %": 10,
-  INT: 32,
-  "INT %": 10,
-  VIT: 32,
-  "VIT %": 10,
-  AGI: 32,
-  "AGI %": 10,
-  DEX: 32,
-  "DEX %": 10,
-  "Natural HP Regen": 32,
-  "Natural HP Regen %": 14,
-  "Natural MP Regen": 16,
-  "Natural MP Regen %": 5,
-  MaxHP: 31,
-  "MaxHP %": 14,
-  MaxMP: 20,
-  DEF: 31,
-  "DEF %": 14,
-  MDEF: 31,
-  "MDEF %": 14,
-  "Kekebalan Fisik %": 14,
-  "Kekebalan Sihir %": 14,
-  Accuracy: 26,
-  "Accuracy %": 7,
-  Dodge: 17,
-  "Dodge %": 7,
-  "Aggro %": 21,
-  "% luka ke Api": 24,
-  "% luka ke Air": 24,
-  "% luka ke Angin": 24,
-  "% luka ke Bumi": 24,
-  "% luka ke Cahaya": 24,
-  "% luka ke Gelap": 24,
+  // Critical
+  "Critical Rate":                     32,
+  "Critical Rate %":                   32,
+  "Critical Damage":                   24,
+  "Critical Damage %":                 12,
+  // Attack
+  "ATK":                               32,
+  "ATK %":                             16,
+  "MATK":                              32,
+  "MATK %":                            16,
+  "Stability %":                        7,
+  "Penetrasi Fisik %":                  9,
+  "Magic Pierce %":                     9,
+  // Speed
+  "Kecepatan Serangan":                32,
+  "Kecepatan Serangan %":              22,
+  "Kecepatan Merapal":                 32,
+  "Kecepatan Merapal %":               22,
+  // Base Stats
+  "STR":                               32,
+  "STR %":                             10,
+  "INT":                               32,
+  "INT %":                             10,
+  "VIT":                               32,
+  "VIT %":                             10,
+  "AGI":                               32,
+  "AGI %":                             10,
+  "DEX":                               32,
+  "DEX %":                             10,
+  // HP/MP  ← MaxLv diperbaiki sesuai referensi
+  "Natural HP Regen":                  32,
+  "Natural HP Regen %":                10,  // FIX: referensi MaxLv:10
+  "Natural MP Regen":                  16,
+  "Natural MP Regen %":                 5,
+  "MaxHP":                             32,  // FIX: referensi MaxLv:32
+  "MaxHP %":                           14,
+  "MaxMP":                             21,  // FIX: referensi MaxLv:21
+  // Defense  ← MaxLv diperbaiki sesuai referensi
+  "DEF":                               32,  // FIX: referensi MaxLv:32
+  "DEF %":                             14,
+  "MDEF":                              32,  // FIX: referensi MaxLv:32
+  "MDEF %":                            14,
+  "Kekebalan Fisik %":                 14,
+  "Kekebalan Sihir %":                 14,
+  // Reduce Dmg  ← BARU dari referensi
+  "% Reduce Dmg (Foe Epicenter)":      12,
+  "% Reduce Dmg (Player Epicenter)":   12,
+  "% Reduce Dmg (Straight Line)":      12,
+  "% Reduce Dmg (Charge)":             12,
+  "% Reduce Dmg (Meteor)":             12,
+  "% Reduce Dmg (Bullet)":             12,
+  "% Reduce Dmg (Bowling)":            12,
+  "% Reduce Dmg (Floor)":              12,
+  // Accuracy / Dodge  ← MaxLv diperbaiki sesuai referensi
+  "Accuracy":                          18,  // FIX: referensi MaxLv:18
+  "Accuracy %":                         7,
+  "Dodge":                             18,  // FIX: referensi MaxLv:18
+  "Dodge %":                            7,
+  // DTE
+  "% luka ke Api":                     24,
+  "% luka ke Air":                     24,
+  "% luka ke Angin":                   24,
+  "% luka ke Bumi":                    24,
+  "% luka ke Cahaya":                  24,
+  "% luka ke Gelap":                   24,
+  // Element Resist  ← BARU dari referensi
+  "kebal Api %":                       28,
+  "kebal Air %":                       28,
+  "kebal Angin %":                     28,
+  "kebal Bumi %":                      28,
+  "kebal Cahaya %":                    28,
+  "kebal Gelap %":                     28,
+  // Special  ← BARU dari referensi
+  "Resistensi Status Buruk %":          7,
+  "Guard Power %":                      7,
+  "Guard Rate %":                       7,
+  "Evasion Rate %":                     7,
+  "Aggro %":                           21,
 };
 
 // ─── PARSE COMMAND ────────────────────────────────────────────────────────────
@@ -150,12 +246,12 @@ function parseCommand(text) {
     recipePotential: 15,
     professionLevel: 0,
     compassion: {
-      metal: 10,
-      cloth: 10,
-      beast: 10,
-      wood: 10,
+      metal:    10,
+      cloth:    10,
+      beast:    10,
+      wood:     10,
       medicine: 10,
-      mana: 10,
+      mana:     10,
     },
   };
 
@@ -171,7 +267,7 @@ function parseCommand(text) {
   if (rpotM) config.recipePotential = Math.min(180, Math.max(1, +rpotM[1]));
 
   const profM = input.match(
-    /(?:prof\s*[:=]?\s*(?:bs\s*[:=]?\s*)?|bs\s*[:=]?\s*)(\d+)/i,
+    /(?:prof\s*[:=]?\s*(?:bs\s*[:=]?\s*)?|bs\s*[:=]?\s*)(\d+)/i
   );
   if (profM) config.professionLevel = Math.min(400, Math.max(0, +profM[1]));
 
@@ -184,7 +280,7 @@ function parseCommand(text) {
     let fullName = statMap[m[1]];
     if (!fullName) continue;
 
-    // ✅ Jika dte% (array), random salah satu elemen
+    // Jika dte% (array), random salah satu elemen
     if (Array.isArray(fullName)) {
       const key = Math.floor(Math.random() * fullName.length);
       fullName = fullName[key];
@@ -192,12 +288,12 @@ function parseCommand(text) {
 
     const isMin = m[2] === "min";
     const isMax = m[2] === "max";
-    const maxLv = statMaxLevel[fullName] || 31;
+    const maxLv = statMaxLevel[fullName] ?? 32;
 
     let level;
-    if (isMin) level = String(maxLv);
-    else if (isMax) level = "MAX";
-    else level = String(Math.min(maxLv, Math.max(0, parseInt(m[2], 10) || 0)));
+    if (isMax)      level = "MAX";
+    else if (isMin) level = String(maxLv);
+    else            level = String(Math.min(maxLv, Math.max(0, parseInt(m[2], 10) || 0)));
 
     if (isMin) {
       if (config.negativeStats.length < 7)
@@ -221,7 +317,8 @@ function makeClient() {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
       "Accept-Encoding": "gzip, deflate, br",
     },
@@ -266,28 +363,22 @@ function buildPayload($, statConfig) {
   params.append("jukurendo", String(Math.min(400, Math.max(0, profLvl))));
 
   params.append("rikaiKinzoku", String(statConfig.compassion.metal));
-  params.append("rikaiNunoti", String(statConfig.compassion.cloth));
-  params.append("rikaiKemono", String(statConfig.compassion.beast));
+  params.append("rikaiNunoti",  String(statConfig.compassion.cloth));
+  params.append("rikaiKemono",  String(statConfig.compassion.beast));
   params.append("rikaiMokuzai", String(statConfig.compassion.wood));
   params.append("rikaiYakuhin", String(statConfig.compassion.medicine));
-  params.append("rikaiMaso", String(statConfig.compassion.mana));
+  params.append("rikaiMaso",    String(statConfig.compassion.mana));
 
   for (let i = 0; i < 7; i++) {
     const stat = statConfig.positiveStats[i];
-    params.append(`plusProperList[${i}].properName`, stat ? stat.name : "");
-    params.append(
-      `plusProperList[${i}].properLvHyoji`,
-      stat ? stat.level : "0",
-    );
+    params.append(`plusProperList[${i}].properName`,    stat ? stat.name  : "");
+    params.append(`plusProperList[${i}].properLvHyoji`, stat ? stat.level : "0");
   }
 
   for (let i = 0; i < 7; i++) {
     const stat = statConfig.negativeStats[i];
-    params.append(`minusProperList[${i}].properName`, stat ? stat.name : "");
-    params.append(
-      `minusProperList[${i}].properLvHyoji`,
-      stat ? stat.level : "0",
-    );
+    params.append(`minusProperList[${i}].properName`,    stat ? stat.name  : "");
+    params.append(`minusProperList[${i}].properLvHyoji`, stat ? stat.level : "0");
   }
 
   params.append("sendData", "Submit");
@@ -317,7 +408,7 @@ function parseHtmlResult(html) {
   const mats = {};
   ["Metal", "Cloth", "Beast", "Wood", "Medicine", "Mana"].forEach((mat) => {
     const r = text.match(
-      new RegExp(`${mat}[：:]\\s*(\\d+(?:,\\d+)*)\\s*pt`, "i"),
+      new RegExp(`${mat}[：:]\\s*(\\d+(?:,\\d+)*)\\s*pt`, "i")
     );
     if (r && r[1] !== "0") mats[mat.toLowerCase()] = r[1];
   });
@@ -328,7 +419,7 @@ function parseHtmlResult(html) {
       .join(", ") || null;
 
   const highestM = m(
-    /Highest\s+mats?\s+per\s+step[：:]\s*([\d,]+(?:\.\d+)?)\s*pt/i,
+    /Highest\s+mats?\s+per\s+step[：:]\s*([\d,]+(?:\.\d+)?)\s*pt/i
   );
   const redM = text.match(/\((\d+%)\s*reduction\s*by\s*(\w[^)]+)\)/i);
 
@@ -387,17 +478,32 @@ export default async function handler(req, res) {
       syntax: "stat=level, lv<num>, pot<num>, bs<num>",
       levels: "max (positive) | min (negative) | number",
       params: {
-        lv: "Character level (200-350)",
-        pot: "Starting potential (1-180)",
+        lv:   "Character level (200-350)",
+        pot:  "Starting potential (1-180)",
         rpot: "Recipe potential (1-180)",
-        bs: "Blacksmith profession level (0-400, multiples of 10)",
+        bs:   "Blacksmith profession level (0-400, multiples of 10)",
       },
       examples: [
         "cd=max,acc=min,lv280,pot110",
         "atk%=max,cr=max,def%=min,lv300,pot120,bs300",
         "matk%=max,int%=max,cspd%=max,lv310,pot110",
+        "kebalapi=max,kebalair=max,resistburuk=max,lv320,pot110",
+        "guardpow=max,guardrate=max,evasion=max,lv300,pot100",
+        "rdcharge=max,rdmeteor=max,def%=max,lv320,pot110",
       ],
-      availableStats: statMap,
+      availableStats: {
+        critical:   ["critdmg/cd", "critdmg%/cd%", "critrate/cr", "critrate%/cr%"],
+        attack:     ["atk", "atk%", "matk", "matk%", "stab/stab%", "penfis/pp%", "penmag/mp%"],
+        speed:      ["aspd", "aspd%", "cspd", "cspd%"],
+        baseStats:  ["str","str%","int","int%","vit","vit%","agi","agi%","dex","dex%"],
+        hpMp:       ["hp","hp%","maxmp","hpreg","hpreg%","mpreg","mpreg%"],
+        defense:    ["def","def%","mdef","mdef%","kebalfis/kebalfis%","kebalmag/kebalmag%"],
+        reduceDmg:  ["rdfoe","rdplayer","rdline","rdcharge","rdmeteor","rdbullet","rdbowling","rdfloor"],
+        accuracy:   ["acc/accuracy","acc%/accuracy%","dodge","dodge%"],
+        dteLuka:    ["dtefire","dtewater","dtewind","dteearth","dtelight","dtedark","dte%"],
+        elemResist: ["kebalapi","kebalair","kebalangin","kebalbumi","kebalcahaya","kebalgelap"],
+        special:    ["resistburuk/sb%","guardpow/gp%","guardrate/gr%","evasion/er%","aggro/aggro%"],
+      },
     });
   }
 
@@ -407,7 +513,7 @@ export default async function handler(req, res) {
     if (!statConfig.positiveStats.length && !statConfig.negativeStats.length) {
       return res.status(400).json({
         ok: false,
-        error: "No valid stats found.",
+        error: "Tidak ada stat yang valid ditemukan.",
         availableKeys: Object.keys(statMap),
       });
     }
@@ -418,7 +524,7 @@ export default async function handler(req, res) {
 
     if (!result.hasValidResult) {
       result._note =
-        "Result not found in response. The form may have validation errors or the server rejected the request.";
+        "Hasil tidak ditemukan dalam response. Form mungkin memiliki validation error atau server menolak request.";
     }
 
     return res.status(200).json({ ok: true, ...result });
