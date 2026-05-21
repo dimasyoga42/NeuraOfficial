@@ -20,7 +20,6 @@ const statMap = {
   cr: "Critical Rate",
   "critrate%": "Critical Rate %",
   "cr%": "Critical Rate %",
-
   atk: "ATK",
   "atk%": "ATK %",
   matk: "MATK",
@@ -33,12 +32,10 @@ const statMap = {
   penmag: "Magic Pierce %",
   "penmag%": "Magic Pierce %",
   "mp%": "Magic Pierce %",
-
   aspd: "Kecepatan Serangan",
   "aspd%": "Kecepatan Serangan %",
   cspd: "Kecepatan Merapal",
   "cspd%": "Kecepatan Merapal %",
-
   str: "STR",
   "str%": "STR %",
   int: "INT",
@@ -49,7 +46,6 @@ const statMap = {
   "agi%": "AGI %",
   dex: "DEX",
   "dex%": "DEX %",
-
   hpreg: "Natural HP Regen",
   "hpreg%": "Natural HP Regen %",
   mpreg: "Natural MP Regen",
@@ -57,7 +53,6 @@ const statMap = {
   hp: "MaxHP",
   "hp%": "MaxHP %",
   maxmp: "MaxMP",
-
   def: "DEF",
   "def%": "DEF %",
   mdef: "MDEF",
@@ -66,23 +61,12 @@ const statMap = {
   "kebalfis%": "Kekebalan Fisik %",
   kebalmag: "Kekebalan Sihir %",
   "kebalmag%": "Kekebalan Sihir %",
-
-  rdfoe: "% Reduce Dmg (Foe Epicenter)",
-  rdplayer: "% Reduce Dmg (Player Epicenter)",
-  rdline: "% Reduce Dmg (Straight Line)",
-  rdcharge: "% Reduce Dmg (Charge)",
-  rdmeteor: "% Reduce Dmg (Meteor)",
-  rdbullet: "% Reduce Dmg (Bullet)",
-  rdbowling: "% Reduce Dmg (Bowling)",
-  rdfloor: "% Reduce Dmg (Floor)",
-
   acc: "Accuracy",
   accuracy: "Accuracy",
   "acc%": "Accuracy %",
   "accuracy%": "Accuracy %",
   dodge: "Dodge",
   "dodge%": "Dodge %",
-
   dteearth: "% luka ke Bumi",
   "dteearth%": "% luka ke Bumi",
   dtefire: "% luka ke Api",
@@ -95,7 +79,6 @@ const statMap = {
   "dtelight%": "% luka ke Cahaya",
   dtedark: "% luka ke Gelap",
   "dtedark%": "% luka ke Gelap",
-
   "dte%": [
     "% luka ke Bumi",
     "% luka ke Api",
@@ -104,44 +87,6 @@ const statMap = {
     "% luka ke Cahaya",
     "% luka ke Gelap",
   ],
-
-  kebalapi: "kebal Api %",
-  "kebalapi%": "kebal Api %",
-  resistfire: "kebal Api %",
-  kebalair: "kebal Air %",
-  "kebalair%": "kebal Air %",
-  resistwater: "kebal Air %",
-  kebalangin: "kebal Angin %",
-  "kebalangin%": "kebal Angin %",
-  resistwind: "kebal Angin %",
-  kebalbumi: "kebal Bumi %",
-  "kebalbumi%": "kebal Bumi %",
-  resistearth: "kebal Bumi %",
-  kebalcahaya: "kebal Cahaya %",
-  "kebalcahaya%": "kebal Cahaya %",
-  resistlight: "kebal Cahaya %",
-  kebalgelap: "kebal Gelap %",
-  "kebalgelap%": "kebal Gelap %",
-  resistdark: "kebal Gelap %",
-
-  resistburuk: "Resistensi Status Buruk %",
-  "resistburuk%": "Resistensi Status Buruk %",
-  sb: "Resistensi Status Buruk %",
-  "sb%": "Resistensi Status Buruk %",
-  guardpow: "Guard Power %",
-  "guardpow%": "Guard Power %",
-  gp: "Guard Power %",
-  "gp%": "Guard Power %",
-  guardrate: "Guard Rate %",
-  "guardrate%": "Guard Rate %",
-  gr: "Guard Rate %",
-  "gr%": "Guard Rate %",
-  evasion: "Evasion Rate %",
-  "evasion%": "Evasion Rate %",
-  er: "Evasion Rate %",
-  "er%": "Evasion Rate %",
-  aggro: "Aggro %",
-  "aggro%": "Aggro %",
 };
 
 const statMaxLevel = {
@@ -149,33 +94,27 @@ const statMaxLevel = {
   "Critical Rate %": 32,
   "Critical Damage": 24,
   "Critical Damage %": 12,
-
-  ATK: 32,
+  "ATK": 32,
   "ATK %": 16,
-  MATK: 32,
+  "MATK": 32,
   "MATK %": 16,
-
-  STR: 32,
+  "STR": 32,
   "STR %": 10,
-  INT: 32,
+  "INT": 32,
   "INT %": 10,
-  VIT: 32,
+  "VIT": 32,
   "VIT %": 10,
-  AGI: 32,
+  "AGI": 32,
   "AGI %": 10,
-  DEX: 32,
+  "DEX": 32,
   "DEX %": 10,
-
-  DEF: 32,
+  "DEF": 32,
   "DEF %": 14,
-  MDEF: 32,
+  "MDEF": 32,
   "MDEF %": 14,
-
-  Accuracy: 18,
+  "Accuracy": 18,
   "Accuracy %": 7,
-
-  MaxMP: 21,
-
+  "MaxMP": 21,
   "% luka ke Api": 24,
   "% luka ke Air": 24,
   "% luka ke Angin": 24,
@@ -345,7 +284,7 @@ async function setNativeValue(
       const el =
         document.querySelector(selector);
 
-      if (!el) return false;
+      if (!el) return;
 
       const prototype =
         Object.getPrototypeOf(el);
@@ -369,8 +308,6 @@ async function setNativeValue(
           bubbles: true,
         })
       );
-
-      return true;
     },
     {
       selector,
@@ -393,11 +330,11 @@ async function scrape(statConfig) {
     });
 
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     );
 
     await page.goto(BASE_URL, {
-      waitUntil: "domcontentloaded",
+      waitUntil: "networkidle2",
       timeout: 60000,
     });
 
@@ -417,36 +354,36 @@ async function scrape(statConfig) {
     await setNativeValue(
       page,
       'input[name="shokiSenzai"]',
-      String(
-        statConfig.startingPotential
-      )
+      String(statConfig.startingPotential)
     );
 
     await setNativeValue(
       page,
       'input[name="kisoSenzai"]',
-      String(
-        statConfig.recipePotential
-      )
+      String(statConfig.recipePotential)
     );
 
-    const profLevel =
+    const prof =
       Math.round(
         statConfig.professionLevel / 10
       ) * 10;
 
-    const profSelector =
-      'select[name="jukurendo"]';
+    await page.evaluate((prof) => {
+      const el =
+        document.querySelector(
+          'select[name="jukurendo"]'
+        );
 
-    const profExists =
-      await page.$(profSelector);
+      if (!el) return;
 
-    if (profExists) {
-      await page.select(
-        profSelector,
-        String(profLevel)
+      el.value = String(prof);
+
+      el.dispatchEvent(
+        new Event("change", {
+          bubbles: true,
+        })
       );
-    }
+    }, prof);
 
     for (let i = 0; i < 7; i++) {
       const plus =
@@ -454,25 +391,44 @@ async function scrape(statConfig) {
 
       if (!plus) continue;
 
-      const nameSelector =
-        `select[name="plusProperList[${i}].properName"]`;
+      await page.evaluate(
+        ({ i, plus }) => {
+          const statSelect =
+            document.querySelector(
+              `select[name="plusProperList[${i}].properName"]`
+            );
 
-      const lvSelector =
-        `select[name="plusProperList[${i}].properLvHyoji"]`;
+          const lvSelect =
+            document.querySelector(
+              `select[name="plusProperList[${i}].properLvHyoji"]`
+            );
 
-      const exists =
-        await page.$(nameSelector);
+          if (statSelect) {
+            statSelect.value =
+              plus.name;
 
-      if (!exists) continue;
+            statSelect.dispatchEvent(
+              new Event("change", {
+                bubbles: true,
+              })
+            );
+          }
 
-      await page.select(
-        nameSelector,
-        plus.name
-      );
+          if (lvSelect) {
+            lvSelect.value =
+              plus.level;
 
-      await page.select(
-        lvSelector,
-        plus.level
+            lvSelect.dispatchEvent(
+              new Event("change", {
+                bubbles: true,
+              })
+            );
+          }
+        },
+        {
+          i,
+          plus,
+        }
       );
     }
 
@@ -482,60 +438,66 @@ async function scrape(statConfig) {
 
       if (!minus) continue;
 
-      const nameSelector =
-        `select[name="minusProperList[${i}].properName"]`;
+      await page.evaluate(
+        ({ i, minus }) => {
+          const statSelect =
+            document.querySelector(
+              `select[name="minusProperList[${i}].properName"]`
+            );
 
-      const lvSelector =
-        `select[name="minusProperList[${i}].properLvHyoji"]`;
+          const lvSelect =
+            document.querySelector(
+              `select[name="minusProperList[${i}].properLvHyoji"]`
+            );
 
-      const exists =
-        await page.$(nameSelector);
+          if (statSelect) {
+            statSelect.value =
+              minus.name;
 
-      if (!exists) continue;
+            statSelect.dispatchEvent(
+              new Event("change", {
+                bubbles: true,
+              })
+            );
+          }
 
-      await page.select(
-        nameSelector,
-        minus.name
-      );
+          if (lvSelect) {
+            lvSelect.value =
+              minus.level;
 
-      await page.select(
-        lvSelector,
-        minus.level
+            lvSelect.dispatchEvent(
+              new Event("change", {
+                bubbles: true,
+              })
+            );
+          }
+        },
+        {
+          i,
+          minus,
+        }
       );
     }
 
-    const submitButton =
-      (await page.$(
-        'input[name="sendData"]'
-      )) ||
-      (await page.$(
-        'input[type="submit"]'
-      )) ||
-      (await page.$(
-        'button[type="submit"]'
-      ));
+    await page.waitForTimeout(1500);
 
-    if (!submitButton) {
-      throw new Error(
-        "Submit button tidak ditemukan"
-      );
-    }
+    await page.evaluate(() => {
+      const btn =
+        document.querySelector(
+          'input[name="sendData"]'
+        ) ||
+        document.querySelector(
+          'input[type="submit"]'
+        );
 
-    await submitButton.click();
+      if (btn) btn.click();
+    });
 
     await page.waitForFunction(
       () => {
-        const text =
-          document.body.innerText;
-
         return (
-          text.includes(
-            "Success Rate"
-          ) ||
-          text.includes(
-            "Starting Pot"
-          ) ||
-          /^\d+\.\s/m.test(text)
+          location.hash === "#output" ||
+          document.querySelector("#output")
         );
       },
       {
@@ -543,14 +505,25 @@ async function scrape(statConfig) {
       }
     );
 
+    await page.waitForTimeout(3000);
+
+    const html =
+      await page.content();
+
     const result =
       await page.evaluate(() => {
-        const bodyText =
-          document.body.innerText;
+        const output =
+          document.querySelector(
+            "#output"
+          );
+
+        const body = output
+          ? output.innerText
+          : document.body.innerText;
 
         const match = (regex) => {
           const m =
-            bodyText.match(regex);
+            body.match(regex);
 
           return m ? m[1] : null;
         };
@@ -567,7 +540,7 @@ async function scrape(statConfig) {
           /Highest\s+mats?\s+per\s+step\s*[：:]\s*([\d.,]+)\s*pt/i
         );
 
-        const steps = bodyText
+        const steps = body
           .split("\n")
           .map((v) => v.trim())
           .filter((v) =>
@@ -584,7 +557,7 @@ async function scrape(statConfig) {
           "Medicine",
           "Mana",
         ]) {
-          const m = bodyText.match(
+          const m = body.match(
             new RegExp(
               `${mat}[：:]\\s*([\\d.,]+)\\s*pt`,
               "i"
@@ -603,22 +576,17 @@ async function scrape(statConfig) {
 
         return {
           successRate:
-            successRate !== null
-              ? `${parseFloat(
-                  successRate.replace(
-                    ",",
-                    "."
-                  )
-                )}%`
+            successRate
+              ? `${successRate}%`
               : null,
 
           startingPot:
-            startingPot !== null
+            startingPot
               ? `${startingPot}pt`
               : null,
 
           highestStepCost:
-            highestStepCost !== null
+            highestStepCost
               ? `${highestStepCost}pt`
               : null,
 
@@ -629,13 +597,14 @@ async function scrape(statConfig) {
 
           materials,
 
-          hasValidResult:
-            successRate !== null &&
-            steps.length > 0,
+          raw: body,
 
-          raw: bodyText,
+          hasValidResult:
+            !!successRate,
         };
       });
+
+    result.html = html;
 
     return result;
   } finally {
@@ -666,12 +635,10 @@ export default async function handler(
   if (!text) {
     return res.status(200).json({
       ok: true,
-      service:
-        "Toram Filarm API",
       endpoint:
         "/api/toram/filarm?text=<command>",
       example:
-        "dte%=max,agi%=max,cd%=max,cr=30,matk%=min,mp=min,acc=min,acc%=min,lv320,bs250,pot65",
+        "cd=max,acc=min,lv280,pot110",
     });
   }
 
