@@ -13,9 +13,6 @@ const execFileAsync = promisify(execFile);
 const BASE_URL = process.env.BASE_URL ?? "https://neurapi.mochinime.cyou/";
 const YT_DLP_PATH = process.env.YT_DLP_PATH ?? "/home/ubuntu/.local/bin/yt-dlp";
 const TMP_DIR = os.tmpdir();
-const PORT = process.env.PORT || 3000;
-
-const app = express();
 
 // ─── Utilitas Pembersihan Direktori Usang ────────────────────────
 const cleanOldDownloadsDirectory = async () => {
@@ -66,7 +63,7 @@ const downloadController = (req, res) => {
 };
 
 // ─── Pengendali Utama Pemrosesan Media ───────────────────────────
-const playController = async (req, res) => {
+export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
@@ -171,10 +168,3 @@ const playController = async (req, res) => {
   }
 };
 
-// ─── Pendaftaran Rute Kerangka Kerja ─────────────────────────────
-app.get("/api/play", playController);
-app.get("/api/download/:filename", downloadController);
-
-app.listen(PORT, () => {
-  console.log(`[Infrastruktur] Peladen web telah mengikat koneksi dan beroperasi secara penuh pada porta ${PORT}`);
-});
