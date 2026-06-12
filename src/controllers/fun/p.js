@@ -11,7 +11,7 @@ const BASE_URL = (
 ).replace(/\/$/, "");
 const DOWNLOAD_DIR = path.resolve("public/downloads");
 const FFMPEG_PATH = process.env.FFMPEG_PATH ?? "/usr/bin/ffmpeg";
-const YTDLP_PATH = process.env.YTDLP_PATH ?? "/usr/local/bin/yt-dlp";
+const YTDLP_PATH = process.env.YTDLP_PATH ?? "yt-dlp";
 
 if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
