@@ -11,7 +11,8 @@ const BASE_URL = (
 ).replace(/\/$/, "");
 const DOWNLOAD_DIR = path.resolve("public/downloads");
 const FFMPEG_PATH = process.env.FFMPEG_PATH ?? "/usr/bin/ffmpeg";
-const YTDLP_PATH = process.env.YTDLP_PATH ?? "yt-dlp";
+const YTDLP_PATH =
+  process.env.YTDLP_PATH ?? process.env.YT_DLP_PATH ?? "yt-dlp";
 
 if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
@@ -89,31 +90,23 @@ const sanitizeFilename = (title) =>
     .slice(0, 80);
 
 const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
-  const mp3Path = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
+  const filename = `${outputId}.mp3`;
+  const mp3Path = path.join(DOWNLOAD_DIR, filename);
 
   const args = [
-    "--no-playlist",
     "--extract-audio",
     "--audio-format",
     "mp3",
     "--audio-quality",
     "2",
-    "--ffmpeg-location",
-    FFMPEG_PATH,
     "--output",
-    mp3Path.replace(/\.mp3$/, ".%(ext)s"),
-    "--no-progress",
-    "--quiet",
-    "--no-warnings",
-    "--extractor-retries",
-    "3",
-    "--socket-timeout",
-    "30",
-    "--user-agent",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
+    mp3Path,
+    "--no-playlist",
   ];
 
-  if (cookieString) {
+  if (process.env.YT_COOKIES_FILE) {
+    args.push("--cookies", process.env.YT_COOKIES_FILE);
+  } else if (cookieString) {
     args.push("--add-header", `Cookie:${cookieString}`);
   }
 
@@ -121,8 +114,8 @@ const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
 
   try {
     await execFileAsync(YTDLP_PATH, args, {
-      timeout: 600000,
-      maxBuffer: 100 * 1024 * 1024,
+      timeout: 300000,
+      maxBuffer: 50 * 1024 * 1024,
     });
   } catch (err) {
     if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
@@ -139,10 +132,10 @@ const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
     throw new Error("File MP3 terlalu kecil, kemungkinan corrupt");
   }
 
-  return mp3Path;
+  return { mp3Path, filename };
 };
 
-export const playControllers = async (req, res) => {
+export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
@@ -212,12 +205,11 @@ export const playControllers = async (req, res) => {
       const cleanTitle = sanitizeFilename(video.title);
       const outputId = `${cleanTitle}_${fileId}`;
 
-      const mp3Path = await downloadWithYtdlp(
+      const { filename } = await downloadWithYtdlp(
         video.url,
         outputId,
         cookieString,
       );
-      const filename = path.basename(mp3Path);
 
       mp3Info = {
         download_url: `${BASE_URL}/downloads/${filename}`,
