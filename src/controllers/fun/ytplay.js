@@ -5,11 +5,11 @@ import { promisify } from "util";
 import { randomUUID } from "crypto";
 
 const execFileAsync = promisify(execFile);
+const fsPromises = fs.promises;
 
 // ─── Konfigurasi Lingkungan Peladen ──────────────────────────────
 const BASE_URL = process.env.BASE_URL ?? "https://neurapi.mochinime.cyou/";
 const DOWNLOAD_DIR = path.resolve("public/downloads");
-// Pastikan parameter ini mengarah pada lokasi biner yt-dlp yang valid di sistem operasi Anda
 const YT_DLP_PATH = process.env.YT_DLP_PATH ?? "yt-dlp";
 
 // Inisialisasi direktori penyimpanan media
@@ -17,28 +17,75 @@ if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 }
 
+// ─── Otomatisasi Pemeliharaan Direktori ──────────────────────────
+const cleanOldDownloadsDirectory = async () => {
+  const downloadDir = path.resolve("public/downloads");
+  // Representasi 20 menit dalam komputasi milidetik
+  const MAX_RETENTION_AGE = 20 * 60 * 1000;
+  const currentTime = Date.now();
+
+  try {
+    const isAccessible = await fsPromises
+      .access(downloadDir)
+      .then(() => true)
+      .catch(() => false);
+    if (!isAccessible) return;
+
+    const files = await fsPromises.readdir(downloadDir);
+    if (files.length === 0) return;
+
+    const deletionPromises = files.map(async (file) => {
+      const filePath = path.join(downloadDir, file);
+      const fileStats = await fsPromises.stat(filePath);
+
+      // Evaluasi kelayakan penghapusan berdasarkan usia berkas
+      if (
+        fileStats.isFile() &&
+        currentTime - fileStats.mtimeMs > MAX_RETENTION_AGE
+      ) {
+        await fsPromises.unlink(filePath);
+        return file;
+      }
+      return null;
+    });
+
+    const results = await Promise.all(deletionPromises);
+    const deletedFiles = results.filter((result) => result !== null);
+
+    if (deletedFiles.length > 0) {
+      console.log(
+        `[Pemeliharaan] Total ${deletedFiles.length} berkas usang yang melewati batas retensi 20 menit berhasil dibersihkan.`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[Pemeliharaan] Terjadi anomali saat purifikasi direktori:",
+      error.message,
+    );
+  }
+};
+
+// Menjadwalkan rutinitas pembersihan setiap 5 menit (300.000 milidetik)
+setInterval(cleanOldDownloadsDirectory, 5 * 60 * 1000);
+
 // ─── Pengendali Utama Pemrosesan Media ───────────────────────────
 export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
     if (!query || typeof query !== "string") {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Parameter kueri wajib dideklarasikan",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Parameter kueri wajib dideklarasikan",
+      });
     }
 
     const keyword = query.trim();
     if (!keyword) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Parameter kueri tidak memenuhi standar validasi",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Parameter kueri tidak memenuhi standar validasi",
+      });
     }
 
     // Eksekusi tahap pertama: Resolusi metadata menggunakan ytsearch1
@@ -55,12 +102,10 @@ export const playController = async (req, res) => {
         "[Resolusi yt-dlp] Kegagalan analitik metadata:",
         searchErr.message,
       );
-      return res
-        .status(404)
-        .json({
-          success: false,
-          error: "Media yang dituju tidak teridentifikasi oleh sistem",
-        });
+      return res.status(404).json({
+        success: false,
+        error: "Media yang dituju tidak teridentifikasi oleh sistem",
+      });
     }
 
     // Pemetaan data leksikal untuk respons antarmuka pemrograman aplikasi
@@ -103,7 +148,7 @@ export const playController = async (req, res) => {
         videoData.webpage_url,
       ];
 
-      // Injeksi fail kuki opsional jika peladen tujuan menerapkan restriksi usia pada konten spesifik
+      // Injeksi fail kuki opsional jika peladen tujuan menerapkan restriksi
       if (process.env.YT_COOKIES_FILE) {
         downloadArgs.push("--cookies", process.env.YT_COOKIES_FILE);
       }
@@ -112,24 +157,6 @@ export const playController = async (req, res) => {
         timeout: 300000,
         maxBuffer: 50 * 1024 * 1024,
       });
-
-      // Penerapan penundaan siklus hidup fail selama 20 menit guna menjaga stabilitas memori sekunder
-      const DESTRUCTION_DELAY = 20 * 60 * 1000;
-      setTimeout(() => {
-        try {
-          if (fs.existsSync(mp3Path)) {
-            fs.unlinkSync(mp3Path);
-            console.log(
-              `[Manajemen Memori] Tenggat retensi tercapai, pemusnahan berkas berhasil dieksekusi: ${filename}`,
-            );
-          }
-        } catch (unlinkErr) {
-          console.error(
-            "[Manajemen Memori] Anomali pada interupsi penghapusan tertunda:",
-            unlinkErr.message,
-          );
-        }
-      }, DESTRUCTION_DELAY);
 
       mp3Info = {
         download_url: `${BASE_URL}downloads/${filename}`,
