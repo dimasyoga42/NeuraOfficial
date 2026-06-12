@@ -102,7 +102,6 @@ const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
     "--output",
     mp3Path,
     "--no-playlist",
-    videoUrl,
   ];
 
   if (process.env.YT_COOKIES_FILE) {
