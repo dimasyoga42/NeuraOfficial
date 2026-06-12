@@ -50,7 +50,7 @@ const cleanOldDownloadsDirectory = async () => {
 cleanOldDownloadsDirectory();
 
 // ─── Pengendali Pengunduhan Dinamis ──────────────────────────────
-const downloadController = (req, res) => {
+export const downloadController = (req, res) => {
   const { filename } = req.params;
   const safeFilename = path.basename(filename);
   const filePath = path.join(TMP_DIR, safeFilename);
@@ -70,7 +70,7 @@ const downloadController = (req, res) => {
 };
 
 // ─── Pengendali Utama Pemrosesan Media ───────────────────────────
-const playController = async (req, res) => {
+export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
@@ -185,10 +185,4 @@ const playController = async (req, res) => {
   }
 };
 
-// ─── Pendaftaran Rute dan Pengikatan Porta ───────────────────────
-app.get("/api/play", playController);
-app.get("/api/download/:filename", downloadController);
 
-app.listen(PORT, () => {
-  console.log(`[Infrastruktur] Peladen web telah mengikat koneksi dan beroperasi secara penuh pada porta ${PORT}`);
-});
