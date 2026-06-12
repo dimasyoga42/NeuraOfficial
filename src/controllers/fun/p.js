@@ -103,6 +103,8 @@ const downloadWithYtdlp = async (videoUrl, outputId) => {
   const mp3Path = path.join(DOWNLOAD_DIR, filename);
 
   const args = [
+    "--js-runtimes",
+    "node",
     "--extract-audio",
     "--audio-format",
     "mp3",
