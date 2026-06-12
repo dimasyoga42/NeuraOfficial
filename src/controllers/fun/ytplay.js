@@ -46,7 +46,7 @@ const cleanOldDownloadsDirectory = async () => {
 cleanOldDownloadsDirectory();
 
 // ─── Pengendali Pengunduhan Dinamis ──────────────────────────────
-const downloadController = (req, res) => {
+export const downloadController = (req, res) => {
   const { filename } = req.params;
   const safeFilename = path.basename(filename);
   const filePath = path.join(TMP_DIR, safeFilename);
@@ -167,4 +167,3 @@ export const playController = async (req, res) => {
     });
   }
 };
-
