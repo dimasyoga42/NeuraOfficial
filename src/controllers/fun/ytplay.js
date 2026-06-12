@@ -9,16 +9,15 @@ import { randomUUID } from "crypto";
 
 const execFileAsync = promisify(execFile);
 
-// ─── Konfigurasi Lingkungan Peladen ──────────────────────────────
+// Konfigurasi Lingkungan Peladen
 const BASE_URL = process.env.BASE_URL ?? "https://neurapi.mochinime.cyou/";
 const YT_DLP_PATH = process.env.YT_DLP_PATH ?? "/home/ubuntu/.local/bin/yt-dlp";
 const TMP_DIR = os.tmpdir();
 const PORT = process.env.PORT || 3000;
 
-// Inisialisasi instansiasi aplikasi Express
 const app = express();
 
-// ─── Utilitas Pembersihan Direktori Usang ────────────────────────
+// Utilitas Pembersihan Direktori Usang
 const cleanOldDownloadsDirectory = async () => {
   const downloadDir = path.resolve("public/downloads");
   try {
@@ -46,10 +45,9 @@ const cleanOldDownloadsDirectory = async () => {
   }
 };
 
-// Eksekusi prosedur pemeliharaan secara asinkron saat peladen melakukan inisialisasi awal
 cleanOldDownloadsDirectory();
 
-// ─── Pengendali Pengunduhan Dinamis ──────────────────────────────
+// Pengendali Pengunduhan Dinamis
 export const downloadController = (req, res) => {
   const { filename } = req.params;
   const safeFilename = path.basename(filename);
@@ -58,7 +56,7 @@ export const downloadController = (req, res) => {
   if (!fsSync.existsSync(filePath)) {
     return res.status(404).json({ 
       success: false, 
-      error: "Berkas digital tidak ditemukan atau telah musnah setelah melewati masa retensi 20 menit" 
+      error: "Berkas digital tidak ditemukan atau telah musnah setelah melewati masa retensi" 
     });
   }
 
@@ -69,7 +67,7 @@ export const downloadController = (req, res) => {
   });
 };
 
-// ─── Pengendali Utama Pemrosesan Media ───────────────────────────
+// Pengendali Utama Pemrosesan Media
 export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
@@ -83,7 +81,7 @@ export const playController = async (req, res) => {
       return res.status(400).json({ success: false, error: "Parameter kueri tidak memenuhi standar validasi" });
     }
 
-    // Resolusi metadata menggunakan kompilator skrip Node.js
+    // Resolusi metadata dengan injeksi kuki dan kompilator Node.js
     const searchArgs = [
       "--dump-json",
       "--no-playlist",
@@ -102,7 +100,7 @@ export const playController = async (req, res) => {
       videoData = JSON.parse(stdout.trim());
     } catch (searchErr) {
       console.error("[Resolusi] Kegagalan analitik metadata:", searchErr.message);
-      return res.status(404).json({ success: false, error: "Sesi ditolak oleh peladen penyedia layanan atau otentikasi kuki tidak valid" });
+      return res.status(404).json({ success: false, error: "Sesi ditolak oleh peladen penyedia layanan" });
     }
 
     const videoInfo = {
@@ -129,7 +127,7 @@ export const playController = async (req, res) => {
       const filename = `${cleanTitle}_${fileId}.mp3`;
       const mp3Path = path.join(TMP_DIR, filename);
 
-      // Transkoding media biner menggunakan parameter kompilator skrip Node.js
+      // Transkoding media biner dengan parameter otorisasi penuh
       const downloadArgs = [
         "--extract-audio",
         "--audio-format", "mp3",
@@ -184,5 +182,4 @@ export const playController = async (req, res) => {
     });
   }
 };
-
 
