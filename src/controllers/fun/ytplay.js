@@ -5,6 +5,7 @@ import { promisify } from "util";
 import { randomUUID } from "crypto";
 
 const execFileAsync = promisify(execFile);
+const fsPromises = fs.promises;
 
 const BASE_URL = (
   process.env.BASE_URL ?? "https://neurapi.mochinime.cyou"
@@ -12,10 +13,49 @@ const BASE_URL = (
 const DOWNLOAD_DIR = path.resolve("public/downloads");
 const YTDLP_PATH =
   process.env.YTDLP_PATH ?? process.env.YT_DLP_PATH ?? "yt-dlp";
+const MAX_RETENTION_AGE = 25 * 60 * 1000;
 
 if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 }
+
+const cleanOldDownloads = async () => {
+  const currentTime = Date.now();
+  try {
+    const isAccessible = await fsPromises
+      .access(DOWNLOAD_DIR)
+      .then(() => true)
+      .catch(() => false);
+    if (!isAccessible) return;
+
+    const files = await fsPromises.readdir(DOWNLOAD_DIR);
+    if (files.length === 0) return;
+
+    const deletionPromises = files.map(async (file) => {
+      const filePath = path.join(DOWNLOAD_DIR, file);
+      try {
+        const stat = await fsPromises.stat(filePath);
+        if (stat.isFile() && currentTime - stat.mtimeMs > MAX_RETENTION_AGE) {
+          await fsPromises.unlink(filePath);
+          return file;
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    });
+
+    const results = await Promise.all(deletionPromises);
+    const deleted = results.filter((f) => f !== null);
+    if (deleted.length > 0) {
+      console.log(`[cleanup] ${deleted.length} file dihapus dari downloads`);
+    }
+  } catch (error) {
+    console.error("[cleanup] Gagal membersihkan folder:", error.message);
+  }
+};
+
+setInterval(cleanOldDownloads, 5 * 60 * 1000);
 
 const buildCookieString = () => {
   const cookieMap = {
@@ -88,17 +128,13 @@ const sanitizeFilename = (title) =>
     .replace(/\s+/g, "_")
     .slice(0, 80);
 
-const buildEnv = () => {
+const buildEnvWithNode = () => {
   const nodePath = path.dirname(process.execPath);
   const currentPath = process.env.PATH ?? "";
-  const pathDirs = currentPath.split(":");
-  const extraPaths = [nodePath].filter((p) => p && !pathDirs.includes(p));
+  const pathHasNode = currentPath.split(":").includes(nodePath);
   return {
     ...process.env,
-    PATH:
-      extraPaths.length > 0
-        ? `${extraPaths.join(":")}:${currentPath}`
-        : currentPath,
+    PATH: pathHasNode ? currentPath : `${nodePath}:${currentPath}`,
   };
 };
 
@@ -137,7 +173,7 @@ const downloadWithYtdlp = async (videoUrl, outputId) => {
     await execFileAsync(YTDLP_PATH, args, {
       timeout: 300000,
       maxBuffer: 50 * 1024 * 1024,
-      env: buildEnv(),
+      env: buildEnvWithNode(),
     });
   } catch (err) {
     if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
@@ -157,7 +193,7 @@ const downloadWithYtdlp = async (videoUrl, outputId) => {
   return { mp3Path, filename };
 };
 
-export const playController = async (req, res) => {
+export const playControllers = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
