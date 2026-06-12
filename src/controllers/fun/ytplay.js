@@ -85,7 +85,7 @@ export const playController = async (req, res) => {
     const searchArgs = [
       "--dump-json",
       "--no-playlist",
-      "--js-runtimes", "node"
+      "--js-runtimes", "node",
       "--cookies-from-browser"
     ];
 
