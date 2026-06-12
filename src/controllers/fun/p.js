@@ -135,7 +135,7 @@ const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
   return { mp3Path, filename };
 };
 
-export const playController = async (req, res) => {
+export const playControllers = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
