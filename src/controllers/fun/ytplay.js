@@ -9,8 +9,7 @@ const execFileAsync = promisify(execFile);
 // ─── Konfigurasi ────────────────────────────────────────────────
 const BASE_URL = process.env.BASE_URL ?? "https://neurapi.mochinime.cyou/";
 const DOWNLOAD_DIR = path.resolve("public/downloads");
-const YTDLP_PATH = process.env.YTDLP_PATH ?? "yt-dlp";
-const FFMPEG_PATH = process.env.FFMPEG_PATH ?? "ffmpeg";
+const FFMPEG_PATH = process.env.FFMPEG_PATH ?? "/usr/bin/ffmpeg";
 
 // Auto-buat folder jika belum ada
 if (!fs.existsSync(DOWNLOAD_DIR)) {
@@ -81,67 +80,67 @@ const findFirstVideo = (data) => {
   return null;
 };
 
-// ─── Konversi ke MP3 ─────────────────────────────────────────────
-/**
- * Download audio dari YouTube pakai yt-dlp lalu convert ke MP3 via ffmpeg.
- * Return path file MP3 yang sudah jadi.
- *
- * @param {string} videoUrl  - URL YouTube
- * @param {string} outputId  - Nama file unik (tanpa ekstensi)
- * @returns {Promise<string>} - Absolute path ke file .mp3
- */
-const convertToMp3 = async (videoUrl, outputId) => {
-  const rawOutput = path.join(DOWNLOAD_DIR, `${outputId}.%(ext)s`);
-  const mp3Output = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
+// ─── Ambil URL stream audio langsung dari ytInitialPlayerResponse ─
+const extractAudioStreamUrl = (html) => {
+  // Ambil ytInitialPlayerResponse dari HTML
+  const match = html.match(
+    /var ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|window|<\/script)/s,
+  );
+  if (!match?.[1]) throw new Error("ytInitialPlayerResponse tidak ditemukan");
 
-  // Langkah 1: Download audio terbaik dengan yt-dlp
-  // --no-playlist  → jangan download playlist kalau URL ada mix
-  // -x             → extract audio only
-  // --audio-format → minta format, tapi kita convert manual biar lebih kontrol
-  await execFileAsync(YTDLP_PATH, [
-    "--no-playlist",
-    "-x",
-    "--audio-quality",
-    "0", // kualitas terbaik
-    "--audio-format",
-    "bestaudio", // download format asli dulu
-    "--format",
-    "bestaudio/best",
-    "-o",
-    rawOutput,
-    videoUrl,
-  ]);
+  const player = JSON.parse(match[1]);
+  const formats = [
+    ...(player?.streamingData?.adaptiveFormats ?? []),
+    ...(player?.streamingData?.formats ?? []),
+  ];
 
-  // Cari file hasil download (bisa .webm, .m4a, .opus, dll)
-  const files = fs
-    .readdirSync(DOWNLOAD_DIR)
-    .filter((f) => f.startsWith(outputId) && !f.endsWith(".mp3"));
+  // Prioritas: audio/webm opus > audio/mp4 > audio lainnya
+  const audioFormats = formats
+    .filter((f) => f.mimeType?.startsWith("audio/") && f.url)
+    .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
 
-  if (files.length === 0) {
-    throw new Error("yt-dlp gagal mengunduh audio");
-  }
+  if (audioFormats.length === 0)
+    throw new Error("Tidak ada stream audio ditemukan");
 
-  const rawFile = path.join(DOWNLOAD_DIR, files[0]);
+  return audioFormats[0].url;
+};
 
-  // Langkah 2: Convert ke MP3 320kbps pakai ffmpeg
-  await execFileAsync(FFMPEG_PATH, [
-    "-i",
-    rawFile,
-    "-vn", // no video
-    "-ar",
-    "44100", // sample rate 44.1kHz
-    "-ac",
-    "2", // stereo
-    "-b:a",
-    "320k", // bitrate 320kbps
-    "-y", // overwrite kalau ada
-    mp3Output,
-  ]);
+// ─── Convert stream audio → MP3 via ffmpeg ───────────────────────
+const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
+  const mp3Path = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
 
-  // Hapus file mentah setelah convert berhasil
-  fs.unlinkSync(rawFile);
+  // ffmpeg langsung baca dari URL stream YouTube, convert ke MP3
+  await execFileAsync(
+    FFMPEG_PATH,
+    [
+      "-reconnect",
+      "1",
+      "-reconnect_streamed",
+      "1",
+      "-reconnect_delay_max",
+      "5",
+      "-headers",
+      `Cookie: ${cookieString}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n`,
+      "-i",
+      streamUrl,
+      "-vn", // skip video
+      "-ar",
+      "44100", // sample rate
+      "-ac",
+      "2", // stereo
+      "-b:a",
+      "192k", // bitrate
+      "-f",
+      "mp3",
+      "-y", // overwrite
+      mp3Path,
+    ],
+    {
+      timeout: 120_000, // 2 menit max
+    },
+  );
 
-  return mp3Output;
+  return mp3Path;
 };
 
 // ─── Sanitize nama file ──────────────────────────────────────────
@@ -150,7 +149,7 @@ const sanitizeFilename = (title) =>
     .replace(/[^\w\s\-]/g, "")
     .trim()
     .replace(/\s+/g, "_")
-    .slice(0, 80); // batas panjang nama file
+    .slice(0, 80);
 
 // ─── Controller ─────────────────────────────────────────────────
 export const playController = async (req, res) => {
@@ -170,14 +169,16 @@ export const playController = async (req, res) => {
         .json({ success: false, error: "Query tidak valid" });
     }
 
-    // ── 1. Cari video YouTube ──────────────────────────────────
+    const cookieString = buildCookieString();
+
+    // ── 1. Cari video ──────────────────────────────────────────
     const searchUrl =
       "https://www.youtube.com/results?search_query=" +
       encodeURIComponent(keyword);
 
-    const response = await fetch(searchUrl, {
+    const searchRes = await fetch(searchUrl, {
       headers: {
-        Cookie: buildCookieString(),
+        Cookie: cookieString,
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
         Accept:
@@ -186,16 +187,15 @@ export const playController = async (req, res) => {
       },
     });
 
-    if (!response.ok) {
-      return res.status(500).json({
-        success: false,
-        error: "Gagal mengambil hasil pencarian",
-      });
+    if (!searchRes.ok) {
+      return res
+        .status(500)
+        .json({ success: false, error: "Gagal mengambil hasil pencarian" });
     }
 
-    const html = await response.text();
-    const data = extractInitialData(html);
-    const video = findFirstVideo(data);
+    const searchHtml = await searchRes.text();
+    const searchData = extractInitialData(searchHtml);
+    const video = findFirstVideo(searchData);
 
     if (!video) {
       return res
@@ -203,15 +203,34 @@ export const playController = async (req, res) => {
         .json({ success: false, error: "Video tidak ditemukan" });
     }
 
-    // ── 2. Download & convert ke MP3 ──────────────────────────
+    // ── 2. Buka halaman video untuk ambil stream URL ───────────
+    const videoRes = await fetch(video.url, {
+      headers: {
+        Cookie: cookieString,
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+
+    if (!videoRes.ok) {
+      return res
+        .status(500)
+        .json({ success: false, error: "Gagal membuka halaman video" });
+    }
+
+    const videoHtml = await videoRes.text();
+    const streamUrl = extractAudioStreamUrl(videoHtml);
+
+    // ── 3. Convert stream → MP3 ────────────────────────────────
     const fileId = randomUUID();
     const cleanTitle = sanitizeFilename(video.title);
     const outputId = `${cleanTitle}_${fileId}`;
 
-    const mp3Path = await convertToMp3(video.url, outputId);
+    const mp3Path = await convertStreamToMp3(streamUrl, outputId, cookieString);
     const filename = path.basename(mp3Path);
-
-    // ── 3. Buat link download ──────────────────────────────────
     const downloadUrl = `${BASE_URL}/downloads/${filename}`;
 
     return res.status(200).json({
