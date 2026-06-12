@@ -1,120 +1,84 @@
-import express from "express";
-import fsSync from "fs";
-import fs from "fs/promises";
+import fs from "fs";
 import path from "path";
-import os from "os";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { randomUUID } from "crypto";
 
 const execFileAsync = promisify(execFile);
 
-// Konfigurasi Lingkungan Peladen
+// ─── Konfigurasi Lingkungan Peladen ──────────────────────────────
 const BASE_URL = process.env.BASE_URL ?? "https://neurapi.mochinime.cyou/";
-const YT_DLP_PATH = process.env.YT_DLP_PATH ?? "/home/ubuntu/.local/bin/yt-dlp";
-const TMP_DIR = os.tmpdir();
-const PORT = process.env.PORT || 3000;
+const DOWNLOAD_DIR = path.resolve("public/downloads");
+// Pastikan parameter ini mengarah pada lokasi biner yt-dlp yang valid di sistem operasi Anda
+const YT_DLP_PATH = process.env.YT_DLP_PATH ?? "yt-dlp";
 
-const app = express();
+// Inisialisasi direktori penyimpanan media
+if (!fs.existsSync(DOWNLOAD_DIR)) {
+  fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+}
 
-// Utilitas Pembersihan Direktori Usang
-const cleanOldDownloadsDirectory = async () => {
-  const downloadDir = path.resolve("public/downloads");
-  try {
-    const isAccessible = await fs.access(downloadDir).then(() => true).catch(() => false);
-    if (!isAccessible) return;
-
-    const files = await fs.readdir(downloadDir);
-    if (files.length === 0) return;
-
-    const deletionPromises = files.map(async (file) => {
-      const filePath = path.join(downloadDir, file);
-      const fileStats = await fs.stat(filePath);
-      if (fileStats.isFile()) {
-        await fs.unlink(filePath);
-        return file;
-      }
-      return null;
-    });
-
-    const results = await Promise.all(deletionPromises);
-    const deletedFiles = results.filter((result) => result !== null);
-    console.log(`[Pemeliharaan] Total ${deletedFiles.length} berkas usang berhasil dibersihkan dari memori sekunder.`);
-  } catch (error) {
-    console.error("[Pemeliharaan] Terjadi anomali saat purifikasi direktori:", error.message);
-  }
-};
-
-cleanOldDownloadsDirectory();
-
-// Pengendali Pengunduhan Dinamis
-export const downloadController = (req, res) => {
-  const { filename } = req.params;
-  const safeFilename = path.basename(filename);
-  const filePath = path.join(TMP_DIR, safeFilename);
-
-  if (!fsSync.existsSync(filePath)) {
-    return res.status(404).json({ 
-      success: false, 
-      error: "Berkas digital tidak ditemukan atau telah musnah setelah melewati masa retensi" 
-    });
-  }
-
-  res.download(filePath, safeFilename, (err) => {
-    if (err && !res.headersSent) {
-      console.error("[Transmisi] Terjadi interupsi jaringan selama distribusi biner:", err.message);
-    }
-  });
-};
-
-// Pengendali Utama Pemrosesan Media
+// ─── Pengendali Utama Pemrosesan Media ───────────────────────────
 export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
     if (!query || typeof query !== "string") {
-      return res.status(400).json({ success: false, error: "Parameter kueri wajib dideklarasikan" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Parameter kueri wajib dideklarasikan",
+        });
     }
 
     const keyword = query.trim();
     if (!keyword) {
-      return res.status(400).json({ success: false, error: "Parameter kueri tidak memenuhi standar validasi" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Parameter kueri tidak memenuhi standar validasi",
+        });
     }
 
-    // Resolusi metadata dengan mengandalkan berkas fisik kuki utuh
-    const searchArgs = [
-      "--dump-json",
-      "--no-playlist",
-      "--js-runtimes", "nodejs"
-    ];
-
-    if (process.env.YT_COOKIES_FILE) {
-      searchArgs.push("--cookies", process.env.YT_COOKIES_FILE);
-    }
-
-    searchArgs.push(`ytsearch1:${keyword}`);
+    // Eksekusi tahap pertama: Resolusi metadata menggunakan ytsearch1
+    const searchArgs = ["--dump-json", "--no-playlist", `ytsearch1:${keyword}`];
 
     let videoData;
     try {
-      const { stdout } = await execFileAsync(YT_DLP_PATH, searchArgs, { maxBuffer: 50 * 1024 * 1024 });
+      const { stdout } = await execFileAsync(YT_DLP_PATH, searchArgs, {
+        maxBuffer: 50 * 1024 * 1024,
+      });
       videoData = JSON.parse(stdout.trim());
     } catch (searchErr) {
-      console.error("[Resolusi] Kegagalan analitik metadata:", searchErr.message);
-      return res.status(404).json({ success: false, error: "Sesi ditolak oleh peladen penyedia layanan akibat anomali identitas" });
+      console.error(
+        "[Resolusi yt-dlp] Kegagalan analitik metadata:",
+        searchErr.message,
+      );
+      return res
+        .status(404)
+        .json({
+          success: false,
+          error: "Media yang dituju tidak teridentifikasi oleh sistem",
+        });
     }
 
+    // Pemetaan data leksikal untuk respons antarmuka pemrograman aplikasi
     const videoInfo = {
       title: videoData.title,
       videoId: videoData.id,
       thumbnail: videoData.thumbnail,
       url: videoData.webpage_url,
-      duration: videoData.duration_string || `${Math.floor(videoData.duration / 60)}:${videoData.duration % 60}`,
+      duration:
+        videoData.duration_string ||
+        `${Math.floor(videoData.duration / 60)}:${videoData.duration % 60}`,
       views: `${videoData.view_count?.toLocaleString("id-ID") ?? 0} tayangan`,
       channel: videoData.uploader,
       publishedTime: videoData.upload_date,
       description: videoData.description?.substring(0, 150) || null,
     };
 
+    // Eksekusi tahap kedua: Pengunduhan biner dan transkoding media
     let mp3Info = null;
     try {
       const fileId = randomUUID();
@@ -125,60 +89,72 @@ export const playController = async (req, res) => {
         .slice(0, 80);
 
       const filename = `${cleanTitle}_${fileId}.mp3`;
-      const mp3Path = path.join(TMP_DIR, filename);
+      const mp3Path = path.join(DOWNLOAD_DIR, filename);
 
       const downloadArgs = [
         "--extract-audio",
-        "--audio-format", "mp3",
-        "--audio-quality", "2",
-        "--js-runtimes", "nodejs",
-        "--output", mp3Path,
-        "--no-playlist"
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "2",
+        "--output",
+        mp3Path,
+        "--no-playlist",
+        videoData.webpage_url,
       ];
 
+      // Injeksi fail kuki opsional jika peladen tujuan menerapkan restriksi usia pada konten spesifik
       if (process.env.YT_COOKIES_FILE) {
         downloadArgs.push("--cookies", process.env.YT_COOKIES_FILE);
       }
-
-      downloadArgs.push(videoData.webpage_url);
 
       await execFileAsync(YT_DLP_PATH, downloadArgs, {
         timeout: 300000,
         maxBuffer: 50 * 1024 * 1024,
       });
 
+      // Penerapan penundaan siklus hidup fail selama 20 menit guna menjaga stabilitas memori sekunder
       const DESTRUCTION_DELAY = 20 * 60 * 1000;
       setTimeout(() => {
         try {
-          if (fsSync.existsSync(mp3Path)) {
-            fsSync.unlinkSync(mp3Path);
-            console.log(`[Manajemen Memori] Siklus hidup berkas berakhir, pemusnahan berhasil dieksekusi: ${filename}`);
+          if (fs.existsSync(mp3Path)) {
+            fs.unlinkSync(mp3Path);
+            console.log(
+              `[Manajemen Memori] Tenggat retensi tercapai, pemusnahan berkas berhasil dieksekusi: ${filename}`,
+            );
           }
         } catch (unlinkErr) {
-          console.error("[Manajemen Memori] Anomali pada eksekusi penghapusan tertunda:", unlinkErr.message);
+          console.error(
+            "[Manajemen Memori] Anomali pada interupsi penghapusan tertunda:",
+            unlinkErr.message,
+          );
         }
       }, DESTRUCTION_DELAY);
 
       mp3Info = {
-        download_url: `${BASE_URL}api/download/${filename}`,
+        download_url: `${BASE_URL}downloads/${filename}`,
         filename,
       };
     } catch (downloadErr) {
-      console.error("[Transkoding] Interupsi pada utilitas pihak ketiga:", downloadErr.message);
+      console.error(
+        "[Transkoding yt-dlp] Interupsi pada utilitas pengunduhan:",
+        downloadErr.message,
+      );
     }
 
+    // Transmisi respons akhir menuju klien
     return res.status(200).json({
       success: true,
       ...videoInfo,
       mp3: mp3Info ?? null,
       mp3_status: mp3Info ? "ready" : "unavailable",
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error?.message ?? "Terjadi malfungsi komputasi pada arsitektur utama peladen",
+      error:
+        error?.message ??
+        "Terjadi malfungsi komputasi pada arsitektur utama peladen",
     });
   }
 };
-
