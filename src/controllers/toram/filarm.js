@@ -238,41 +238,23 @@ function parseCommand(text) {
   const input = text.toLowerCase().trim();
 
   const lvM = input.match(/(?:^|,)\s*lv\s*=\s*(\d+)/i);
-
   if (lvM) {
-    config.characterLevel = Math.min(
-      350,
-      Math.max(200, Number(lvM[1]))
-    );
+    config.characterLevel = Math.min(350, Math.max(200, Number(lvM[1])));
   }
 
   const potM = input.match(/(?:^|,)\s*pot\s*=\s*(\d+)/i);
-
   if (potM) {
-    config.startingPotential = Math.min(
-      180,
-      Math.max(1, Number(potM[1]))
-    );
+    config.startingPotential = Math.min(180, Math.max(1, Number(potM[1])));
   }
 
   const rpotM = input.match(/(?:^|,)\s*rpot\s*=\s*(\d+)/i);
-
   if (rpotM) {
-    config.recipePotential = Math.min(
-      180,
-      Math.max(1, Number(rpotM[1]))
-    );
+    config.recipePotential = Math.min(180, Math.max(1, Number(rpotM[1])));
   }
 
-  const profM = input.match(
-    /(?:^|,)\s*(?:prof|bs)\s*=\s*(\d+)/i
-  );
-
+  const profM = input.match(/(?:^|,)\s*(?:prof|bs)\s*=\s*(\d+)/i);
   if (profM) {
-    config.professionLevel = Math.min(
-      400,
-      Math.max(0, Number(profM[1]))
-    );
+    config.professionLevel = Math.min(400, Math.max(0, Number(profM[1])));
   }
 
   const parts = input
@@ -281,71 +263,41 @@ function parseCommand(text) {
     .filter(Boolean);
 
   for (const part of parts) {
-    if (
-      /^(lv|pot|rpot|prof|bs)\s*=/.test(part)
-    ) {
+    if (/^(lv|pot|rpot|prof|bs)\s*=/.test(part)) {
       continue;
     }
 
-    const match = part.match(
-      /^([a-z0-9%]+)\s*=\s*(max|min|\d+)$/i
-    );
-
+    const match = part.match(/^([a-z0-9%]+)\s*=\s*(max|min|\d+)$/i);
     if (!match) continue;
 
     const key = match[1].toLowerCase();
     const value = match[2].toLowerCase();
 
     let fullName = statMap[key];
-
     if (!fullName) continue;
 
     if (Array.isArray(fullName)) {
-      const index = Math.floor(
-        Math.random() * fullName.length
-      );
-
+      const index = Math.floor(Math.random() * fullName.length);
       fullName = fullName[index];
     }
 
     const maxLv = statMaxLevel[fullName] ?? 32;
 
     let level = "0";
-
-    if (value === "max") {
-      level = "MAX";
-    } else if (value === "min") {
+    if (value === "max" || value === "min") {
       level = "MAX";
     } else {
-      level = String(
-        Math.min(
-          maxLv,
-          Math.max(0, Number(value))
-        )
-      );
+      level = String(Math.min(maxLv, Math.max(0, Number(value))));
     }
 
     if (value === "min") {
-      if (config.negativeStats.length >= 7) {
-        continue;
-      }
-
-      config.negativeStats.push({
-        name: fullName,
-        level: "MAX",
-      });
-
+      if (config.negativeStats.length >= 7) continue;
+      config.negativeStats.push({ name: fullName, level: "MAX" });
       continue;
     }
 
-    if (config.positiveStats.length >= 7) {
-      continue;
-    }
-
-    config.positiveStats.push({
-      name: fullName,
-      level,
-    });
+    if (config.positiveStats.length >= 7) continue;
+    config.positiveStats.push({ name: fullName, level });
   }
 
   return config;
@@ -356,8 +308,7 @@ function makeClient() {
   return axios.create({
     timeout: 30000,
     headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
       Referer: BASE_URL,
       Origin: "https://tanaka0.work",
     },
@@ -380,38 +331,14 @@ function buildPayload(statConfig) {
 
   for (let i = 0; i < 7; i++) {
     const stat = statConfig.positiveStats[i];
-
-    parts.push(
-      encodeField(
-        `plusProperList[${i}].properName`,
-        stat?.name || ""
-      )
-    );
-
-    parts.push(
-      encodeField(
-        `plusProperList[${i}].properLvHyoji`,
-        stat?.level || "0"
-      )
-    );
+    parts.push(encodeField(`plusProperList[${i}].properName`, stat?.name || ""));
+    parts.push(encodeField(`plusProperList[${i}].properLvHyoji`, stat?.level || "0"));
   }
 
   for (let i = 0; i < 7; i++) {
     const stat = statConfig.negativeStats[i];
-
-    parts.push(
-      encodeField(
-        `minusProperList[${i}].properName`,
-        stat?.name || ""
-      )
-    );
-
-    parts.push(
-      encodeField(
-        `minusProperList[${i}].properLvHyoji`,
-        stat?.level || "0"
-      )
-    );
+    parts.push(encodeField(`minusProperList[${i}].properName`, stat?.name || ""));
+    parts.push(encodeField(`minusProperList[${i}].properLvHyoji`, stat?.level || "0"));
   }
 
   parts.push(encodeField("sendData", "Submit"));
@@ -423,45 +350,126 @@ function buildPayload(statConfig) {
 function parseHtmlResult(html) {
   const $ = cheerio.load(html);
 
-  const text = $("body").text();
+  // ── Success Rate ──────────────────────────────────────────────────────────
+  // Format HTML: <font color="red">Success Rate:100%</font>
+  // Bisa juga muncul di <span><font color="red">Success Rate:100%</font></span>
+  let successRate = null;
+  $("font[color='red']").each((_, el) => {
+    const t = $(el).text().trim();
+    const m = t.match(/Success\s*Rate\s*[：:]\s*([\d.,]+%)/i);
+    if (m && !successRate) successRate = m[1];
+  });
 
-  const m = (regex) => {
-    const r = text.match(regex);
-    return r ? r[1] : null;
-  };
+  // ── Starting Pot ──────────────────────────────────────────────────────────
+  // Format HTML: Steps<b>(Starting Pot：110pt)</b>
+  // Karakter separator bisa fullwidth ： atau halfwidth :
+  let startingPot = null;
+  $("b").each((_, el) => {
+    const t = $(el).text().trim();
+    const m = t.match(/Starting\s*Pot\s*[：:]\s*(-?\d+pt)/i);
+    if (m && !startingPot) startingPot = m[1];
+  });
 
-  const successRate =
-    m(/Success\s*Rate\s*[：:]\s*([\d.,]+)%/i);
+  // ── Steps ─────────────────────────────────────────────────────────────────
+  // Format teks: "1. Berikan ATK% Lvl.4, CD% Lvl.2 sekaligus.（Sisa Pot：10pt)"
+  // Setiap step dipisahkan oleh <br><br> di dalam <div>
+  // Deteksi div yang mengandung step dengan marker "Sisa Pot"
+  const steps = [];
 
-  const startingPot =
-    m(/Starting\s*Pot\s*[：:]\s*(\d+pt)/i);
+  $("div").each((_, divEl) => {
+    const divText = $(divEl).text();
+    if (!divText.includes("Sisa Pot")) return;
 
-  const highestStepCost =
-    m(/Highest\s*mats?\s*per\s*step\s*[：:]\s*([\d.,]+\s*pt)/i);
+    // Ekstrak setiap step dengan nomor urut diikuti teks instruksi + pot sisa
+    // Pola: angka + ". " + teks instruksi + "（Sisa Pot：Xpt)"
+    // Gunakan global matchAll untuk menangkap semua step dalam satu div
+    const stepRegex =
+      /(\d+)\.\s+((?:(?!(?:\d+\.\s+Berikan|\d+\.\s+Give)).)*?(?:sekaligus|satu per satu)[^（）]*[（(]Sisa Pot[：:][^)）]+[)）])/gi;
 
-  const steps = text
-    .split("\n")
-    .map((v) => v.trim())
-    .filter((v) => /^\d+\./.test(v));
-
-  const materials = {};
-
-  for (const mat of [
-    "Metal",
-    "Cloth",
-    "Beast",
-    "Wood",
-    "Medicine",
-    "Mana",
-  ]) {
-    const r = text.match(
-      new RegExp(`${mat}[：:]\\s*([\\d.,]+)\\s*pt`, "i")
-    );
-
-    if (r) {
-      materials[mat.toLowerCase()] = r[1];
+    const matches = [...divText.matchAll(stepRegex)];
+    if (matches.length > 0) {
+      for (const m of matches) {
+        const stepText = `${m[1]}. ${m[2].trim()}`;
+        if (!steps.some((s) => s === stepText)) {
+          steps.push(stepText);
+        }
+      }
+      return false;
     }
+  });
+
+  // Fallback: parse menggunakan split pada <br> tags jika matchAll kosong
+  if (steps.length === 0) {
+    $("div").each((_, divEl) => {
+      const divHtml = $(divEl).html() ?? "";
+      if (!divHtml.includes("Sisa Pot")) return;
+
+      // Split berdasarkan <br> dan cari baris yang dimulai angka + titik
+      const lines = divHtml
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      for (const line of lines) {
+        // Decode HTML entities sederhana
+        const decoded = line
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"');
+
+        if (/^\d+\.\s+/.test(decoded) && decoded.includes("Sisa Pot")) {
+          if (!steps.some((s) => s === decoded)) {
+            steps.push(decoded);
+          }
+        }
+      }
+
+      if (steps.length > 0) return false;
+    });
   }
+
+  // ── Materials ─────────────────────────────────────────────────────────────
+  // Format: Metal:0pt,Cloth:0pt,Beast:13,714pt,Wood:36,805pt,Medicine:42,561pt,Mana:23,896pt
+  // Angka menggunakan koma sebagai thousands separator, diakhiri "pt"
+  // Regex khusus: nama material, lalu angka (bisa ada koma), lalu "pt"
+  const materials = {};
+  const materialNames = ["Metal", "Cloth", "Beast", "Wood", "Medicine", "Mana"];
+
+  $("div").each((_, divEl) => {
+    const divText = $(divEl).text();
+    if (!divText.includes("Metal:") || !divText.includes("Cloth:")) return;
+
+    for (const matName of materialNames) {
+      // Pola: "Metal:" diikuti angka dengan possible koma thousands, diakhiri "pt"
+      // Contoh: Metal:0pt  atau  Beast:13,714pt
+      const matRegex = new RegExp(
+        `${matName}[：:]([0-9](?:[0-9,]*[0-9])?)pt`,
+        "i"
+      );
+      const mr = divText.match(matRegex);
+      if (mr) {
+        // Hapus koma (thousands separator) untuk mendapat angka bersih
+        const cleanValue = mr[1].replace(/,/g, "");
+        materials[matName.toLowerCase()] = cleanValue;
+      }
+    }
+
+    return false;
+  });
+
+  // ── Highest mats per step ─────────────────────────────────────────────────
+  // Format: (Highest mats per step: 42.561 pt)
+  // Titik dipakai sebagai decimal/thousands separator di sini
+  let highestStepCost = null;
+  const bodyText = $("body").text();
+  const hm = bodyText.match(
+    /Highest\s*mats?\s*per\s*step\s*[：:]\s*([\d.,]+\s*pt)/i
+  );
+  if (hm) highestStepCost = hm[1].trim();
 
   return {
     successRate,
@@ -470,27 +478,20 @@ function parseHtmlResult(html) {
     totalSteps: steps.length,
     steps,
     materials,
-    hasValidResult:
-      !!successRate && steps.length > 0,
+    hasValidResult: !!successRate && steps.length > 0,
   };
 }
 
 // ─── SCRAPE ───────────────────────────────────────────────────────────────────
 async function scrape(statConfig) {
   const client = makeClient();
-
   const payload = buildPayload(statConfig);
 
-  const response = await client.post(
-    `${BASE_URL}#output`,
-    payload,
-    {
-      headers: {
-        "Content-Type":
-          "application/x-www-form-urlencoded",
-      },
-    }
-  );
+  const response = await client.post(`${BASE_URL}#output`, payload, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+  });
 
   return parseHtmlResult(response.data);
 }
@@ -509,8 +510,7 @@ export default async function handler(req, res) {
   if (!text) {
     return res.status(200).json({
       ok: true,
-      example:
-        "cd=max,acc=min,lv=320,pot=110,prof=250",
+      example: "cd=max,acc=min,lv=320,pot=110,prof=250",
     });
   }
 
@@ -541,7 +541,6 @@ export default async function handler(req, res) {
     return res.status(500).json({
       ok: false,
       error: err.message,
-      stack: err.stack,
       duration: Date.now() - start,
     });
   }
