@@ -4,6 +4,7 @@ import { struckRes } from "./src/utility/struck.js";
 import main from "./src/route/main.js";
 import toram from "./src/route/toram.js";
 import cors from "cors";
+import path from "path";
 dotenv.config();
 
 const Port = process.env.PORT || 2120;
@@ -17,6 +18,7 @@ app.use(
 );
 app.use("/api/etc", main);
 app.use("/api/toram", toram);
+app.use("/downloads", express.static(path.resolve("public/downloads")));
 app.listen(Port, () => {
   console.log("server is run");
 });
