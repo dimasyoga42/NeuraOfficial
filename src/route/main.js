@@ -7,6 +7,7 @@ import { khodam } from "../controllers/fun/khodam.js";
 import { wellcome } from "../controllers/fun/wellcome.js";
 import { playController } from "../controllers/fun/ytplay.js";
 import { playControllers } from "../controllers/fun/p.js";
+import { pinterestSearch } from "../controllers/fun/pin.js";
 
 const main = express.Router();
 
@@ -17,4 +18,5 @@ main.get("/khodam", khodam);
 main.get("/wellcome", wellcome);
 main.get("/play", playController);
 main.get("/plays", playControllers);
+main.get("/pin", pinterestSearch);
 export default main;
