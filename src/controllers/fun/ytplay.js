@@ -96,7 +96,20 @@ const extractAudioStreamUrl = (html) => {
   ];
 
   const audioFormats = formats
-    .filter((f) => f.mimeType?.startsWith("audio/") && f.url)
+    .filter((f) => f.mimeType?.startsWith("audio/"))
+    .map((f) => {
+      if (f.url) return f;
+      if (f.signatureCipher) {
+        const params = new URLSearchParams(f.signatureCipher);
+        return { ...f, url: params.get("url") };
+      }
+      if (f.cipher) {
+        const params = new URLSearchParams(f.cipher);
+        return { ...f, url: params.get("url") };
+      }
+      return f;
+    })
+    .filter((f) => f.url)
     .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
 
   if (audioFormats.length === 0)
@@ -114,7 +127,6 @@ const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
     "Origin: https://www.youtube.com\r\n",
   ];
 
-  // Injeksi cookie ke dalam header transmisi FFmpeg
   if (cookieString) {
     headers.push(`Cookie: ${cookieString}\r\n`);
   }
@@ -211,7 +223,6 @@ export const playController = async (req, res) => {
         .json({ success: false, error: "Video tidak ditemukan" });
     }
 
-    // Info dasar video — selalu ada di response meski MP3 gagal
     const videoInfo = {
       title: video.title,
       videoId: video.videoId,
@@ -246,7 +257,7 @@ export const playController = async (req, res) => {
       console.error("[stream] Gagal ambil stream URL:", streamErr.message);
     }
 
-    // ── 3. Convert → MP3 (opsional, tidak gagalkan response) ──
+    // ── 3. Convert → MP3 ───────────────────────────────────────
     let mp3Info = null;
     if (streamUrl) {
       try {
@@ -254,7 +265,6 @@ export const playController = async (req, res) => {
         const cleanTitle = sanitizeFilename(video.title);
         const outputId = `${cleanTitle}_${fileId}`;
 
-        // Meneruskan cookieString ke fungsi konversi
         const mp3Path = await convertStreamToMp3(
           streamUrl,
           outputId,
@@ -271,7 +281,7 @@ export const playController = async (req, res) => {
       }
     }
 
-    // ── 4. Response — selalu sukses selama video ditemukan ────
+    // ── 4. Response ────────────────────────────────────────────
     return res.status(200).json({
       success: true,
       ...videoInfo,
