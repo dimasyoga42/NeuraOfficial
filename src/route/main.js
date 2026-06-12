@@ -6,6 +6,7 @@ import { Anime } from "../controllers/fun/anime.js";
 import { khodam } from "../controllers/fun/khodam.js";
 import { wellcome } from "../controllers/fun/wellcome.js";
 import { playController } from "../controllers/fun/ytplay.js";
+import { playControllers } from "../controllers/fun/p.js";
 
 const main = express.Router();
 
@@ -15,4 +16,5 @@ main.get("/anime", Anime);
 main.get("/khodam", khodam);
 main.get("/wellcome", wellcome);
 main.get("/play", playController);
+main.get("/plays", playControllers);
 export default main;
