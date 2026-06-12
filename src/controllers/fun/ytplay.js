@@ -9,167 +9,13 @@ const execFileAsync = promisify(execFile);
 // ─── Konfigurasi ────────────────────────────────────────────────
 const BASE_URL = process.env.BASE_URL ?? "https://neurapi.mochinime.cyou/";
 const DOWNLOAD_DIR = path.resolve("public/downloads");
-const FFMPEG_PATH = process.env.FFMPEG_PATH ?? "/usr/bin/ffmpeg";
+// Parameter ekskusi ini mengasumsikan yt-dlp telah terpasang pada variabel lingkungan sistem operasi
+const YT_DLP_PATH = process.env.YT_DLP_PATH ?? "/home/ubuntu/.local/bin/yt-dlp";
 
-// Auto-buat folder jika belum ada
+// Inisialisasi direktori penyimpanan media
 if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 }
-
-// ─── Cookie Helper ───────────────────────────────────────────────
-const buildCookieString = () => {
-  const cookieMap = {
-    SID: process.env.YT_COOKIE_SID,
-    HSID: process.env.YT_COOKIE_HSID,
-    SSID: process.env.YT_COOKIE_SSID,
-    APISID: process.env.YT_COOKIE_APISID,
-    SAPISID: process.env.YT_COOKIE_SAPISID,
-    "__Secure-1PAPISID": process.env.YT_COOKIE_SECURE_1PAPISID,
-    "__Secure-3PAPISID": process.env.YT_COOKIE_SECURE_3PAPISID,
-    LOGIN_INFO: process.env.YT_COOKIE_LOGIN_INFO,
-    PREF: process.env.YT_COOKIE_PREF,
-  };
-  return Object.entries(cookieMap)
-    .filter(([, value]) => typeof value === "string" && value.trim() !== "")
-    .map(([key, value]) => `${key}=${value}`)
-    .join("; ");
-};
-
-// ─── Scraping Helpers ────────────────────────────────────────────
-const extractInitialData = (html) => {
-  const patterns = [
-    /var ytInitialData = (.+?);<\/script>/s,
-    /window\["ytInitialData"\] = (.+?);<\/script>/s,
-    /ytInitialData"\s*:\s*(\{.*?\})\s*,\s*"metadata"/s,
-  ];
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) {
-      try {
-        return JSON.parse(match[1]);
-      } catch {
-        continue;
-      }
-    }
-  }
-  throw new Error("ytInitialData tidak ditemukan");
-};
-
-const findFirstVideo = (data) => {
-  const contents =
-    data?.contents?.twoColumnSearchResultsRenderer?.primaryContents
-      ?.sectionListRenderer?.contents ?? [];
-  for (const section of contents) {
-    const items = section?.itemSectionRenderer?.contents ?? [];
-    for (const item of items) {
-      const video = item?.videoRenderer;
-      if (!video?.videoId) continue;
-      return {
-        videoId: video.videoId,
-        title: video.title?.runs?.[0]?.text ?? null,
-        thumbnail:
-          video.thumbnail?.thumbnails?.[video.thumbnail.thumbnails.length - 1]
-            ?.url ?? null,
-        duration: video.lengthText?.simpleText ?? null,
-        views: video.viewCountText?.simpleText ?? null,
-        channel: video.ownerText?.runs?.[0]?.text ?? null,
-        publishedTime: video.publishedTimeText?.simpleText ?? null,
-        description: video.descriptionSnippet?.runs?.[0]?.text ?? null,
-        url: `https://www.youtube.com/watch?v=${video.videoId}`,
-      };
-    }
-  }
-  return null;
-};
-
-// ─── Ambil URL stream audio dari ytInitialPlayerResponse ─────────
-const extractAudioStreamUrl = (html) => {
-  const match = html.match(
-    /var ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|window|<\/script)/s,
-  );
-  if (!match?.[1]) throw new Error("ytInitialPlayerResponse tidak ditemukan");
-
-  const player = JSON.parse(match[1]);
-  const formats = [
-    ...(player?.streamingData?.adaptiveFormats ?? []),
-    ...(player?.streamingData?.formats ?? []),
-  ];
-
-  const audioFormats = formats
-    .filter((f) => f.mimeType?.startsWith("audio/"))
-    .map((f) => {
-      if (f.url) return f;
-      if (f.signatureCipher) {
-        const params = new URLSearchParams(f.signatureCipher);
-        return { ...f, url: params.get("url") };
-      }
-      if (f.cipher) {
-        const params = new URLSearchParams(f.cipher);
-        return { ...f, url: params.get("url") };
-      }
-      return f;
-    })
-    .filter((f) => f.url)
-    .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
-
-  if (audioFormats.length === 0)
-    throw new Error("Tidak ada stream audio ditemukan");
-
-  return audioFormats[0].url;
-};
-
-// ─── Convert stream audio → MP3 via ffmpeg ───────────────────────
-const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
-  const mp3Path = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
-
-  const headers = [
-    "Referer: https://www.youtube.com/\r\n",
-    "Origin: https://www.youtube.com\r\n",
-  ];
-
-  if (cookieString) {
-    headers.push(`Cookie: ${cookieString}\r\n`);
-  }
-
-  await execFileAsync(
-    FFMPEG_PATH,
-    [
-      "-user_agent",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
-      "-headers",
-      headers.join(""),
-      "-reconnect",
-      "1",
-      "-reconnect_streamed",
-      "1",
-      "-reconnect_delay_max",
-      "5",
-      "-i",
-      streamUrl,
-      "-vn",
-      "-codec:a",
-      "libmp3lame",
-      "-q:a",
-      "2",
-      "-y",
-      mp3Path,
-    ],
-    {
-      timeout: 300000,
-      maxBuffer: 50 * 1024 * 1024,
-    },
-  );
-
-  return mp3Path;
-};
-
-// ─── Sanitize nama file ──────────────────────────────────────────
-const sanitizeFilename = (title) =>
-  (title ?? "audio")
-    .replace(/[^\w\s\-]/g, "")
-    .trim()
-    .replace(/\s+/g, "_")
-    .slice(0, 80);
 
 // ─── Controller ─────────────────────────────────────────────────
 export const playController = async (req, res) => {
@@ -189,99 +35,86 @@ export const playController = async (req, res) => {
         .json({ success: false, error: "Query tidak valid" });
     }
 
-    const cookieString = buildCookieString();
+    // ── 1. Tahap Resolusi Metadata Asinkron ─────────────────────
+    // Spesifikasi ytsearch1: menginstruksikan modul untuk mengambil tepat satu data teratas
+    const searchArgs = ["--dump-json", "--no-playlist", `ytsearch1:${keyword}`];
 
-    // ── 1. Cari video ──────────────────────────────────────────
-    const searchUrl =
-      "https://www.youtube.com/results?search_query=" +
-      encodeURIComponent(keyword);
-
-    const searchRes = await fetch(searchUrl, {
-      headers: {
-        Cookie: cookieString,
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
-      },
-    });
-
-    if (!searchRes.ok) {
-      return res
-        .status(500)
-        .json({ success: false, error: "Gagal mengambil hasil pencarian" });
-    }
-
-    const searchHtml = await searchRes.text();
-    const searchData = extractInitialData(searchHtml);
-    const video = findFirstVideo(searchData);
-
-    if (!video) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Video tidak ditemukan" });
+    let videoData;
+    try {
+      const { stdout } = await execFileAsync(YT_DLP_PATH, searchArgs, {
+        maxBuffer: 50 * 1024 * 1024,
+      });
+      // Mengurai luaran standar menjadi struktur objek leksikal
+      videoData = JSON.parse(stdout.trim());
+    } catch (searchErr) {
+      console.error("[yt-dlp resolusi] Kegagalan analitik:", searchErr.message);
+      return res.status(404).json({
+        success: false,
+        error: "Media tidak teridentifikasi atau akses jaringan ditolak",
+      });
     }
 
     const videoInfo = {
-      title: video.title,
-      videoId: video.videoId,
-      thumbnail: video.thumbnail,
-      url: video.url,
-      duration: video.duration,
-      views: video.views,
-      channel: video.channel,
-      publishedTime: video.publishedTime,
-      description: video.description,
+      title: videoData.title,
+      videoId: videoData.id,
+      thumbnail: videoData.thumbnail,
+      url: videoData.webpage_url,
+      duration:
+        videoData.duration_string ||
+        `${Math.floor(videoData.duration / 60)}:${videoData.duration % 60}`,
+      views: `${videoData.view_count?.toLocaleString("id-ID") ?? 0} tayangan`,
+      channel: videoData.uploader,
+      publishedTime: videoData.upload_date,
+      description: videoData.description?.substring(0, 150) || null,
     };
 
-    // ── 2. Buka halaman video ──────────────────────────────────
-    let streamUrl = null;
+    // ── 2. Tahap Pengunduhan dan Pemrosesan Lanjutan ────────────
+    let mp3Info = null;
     try {
-      const videoRes = await fetch(video.url, {
-        headers: {
-          Cookie: cookieString,
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
+      const fileId = randomUUID();
+      const cleanTitle = (videoData.title || "audio")
+        .replace(/[^\w\s\-]/g, "")
+        .trim()
+        .replace(/\s+/g, "_")
+        .slice(0, 80);
+
+      const filename = `${cleanTitle}_${fileId}.mp3`;
+      const mp3Path = path.join(DOWNLOAD_DIR, filename);
+
+      const downloadArgs = [
+        "--extract-audio",
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "2",
+        "--output",
+        mp3Path,
+        "--no-playlist",
+        videoData.webpage_url,
+      ];
+
+      // Integrasi kredensial jaringan jika diperlukan untuk melewati restriksi usia peladen
+      if (process.env.YT_COOKIES_FILE) {
+        downloadArgs.push("--cookies", process.env.YT_COOKIES_FILE);
+      }
+
+      await execFileAsync(YT_DLP_PATH, downloadArgs, {
+        timeout: 300000,
+        maxBuffer: 50 * 1024 * 1024,
       });
 
-      if (videoRes.ok) {
-        const videoHtml = await videoRes.text();
-        streamUrl = extractAudioStreamUrl(videoHtml);
-      }
-    } catch (streamErr) {
-      console.error("[stream] Gagal ambil stream URL:", streamErr.message);
+      mp3Info = {
+        download_url: `${BASE_URL}downloads/${filename}`,
+        filename,
+      };
+    } catch (downloadErr) {
+      console.error(
+        "[yt-dlp transkoding] Interupsi sistem:",
+        downloadErr.message,
+      );
     }
 
-    // ── 3. Convert → MP3 ───────────────────────────────────────
-    let mp3Info = null;
-    if (streamUrl) {
-      try {
-        const fileId = randomUUID();
-        const cleanTitle = sanitizeFilename(video.title);
-        const outputId = `${cleanTitle}_${fileId}`;
-
-        const mp3Path = await convertStreamToMp3(
-          streamUrl,
-          outputId,
-          cookieString,
-        );
-        const filename = path.basename(mp3Path);
-
-        mp3Info = {
-          download_url: `${BASE_URL}downloads/${filename}`,
-          filename,
-        };
-      } catch (ffmpegErr) {
-        console.error("[ffmpeg] Gagal convert MP3:", ffmpegErr.message);
-      }
-    }
-
-    // ── 4. Response ────────────────────────────────────────────
+    // ── 3. Konstruksi Respons RESTful ───────────────────────────
     return res.status(200).json({
       success: true,
       ...videoInfo,
@@ -291,7 +124,9 @@ export const playController = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error?.message ?? "Terjadi kesalahan saat memproses",
+      error:
+        error?.message ??
+        "Terjadi anomali komputasi yang tidak terduga pada peladen utama",
     });
   }
 };
