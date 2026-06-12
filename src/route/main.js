@@ -5,7 +5,7 @@ import { kerangAjaib } from "../controllers/fun/kerang.js";
 import { Anime } from "../controllers/fun/anime.js";
 import { khodam } from "../controllers/fun/khodam.js";
 import { wellcome } from "../controllers/fun/wellcome.js";
-import { playController } from "../controllers/fun/ytplay.js";
+import { playControllers } from "../controllers/fun/ytplay.js";
 import { playControllers } from "../controllers/fun/p.js";
 import { pinterestSearch } from "../controllers/fun/pin.js";
 
