@@ -106,39 +106,39 @@ const extractAudioStreamUrl = (html) => {
 };
 
 // ─── Convert stream audio → MP3 via ffmpeg ───────────────────────
-const convertStreamToMp3 = async (streamUrl, outputId) => {
+const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
   const mp3Path = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
+
+  const headers = [
+    "Referer: https://www.youtube.com/\r\n",
+    "Origin: https://www.youtube.com\r\n",
+  ];
+
+  // Injeksi cookie ke dalam header transmisi FFmpeg
+  if (cookieString) {
+    headers.push(`Cookie: ${cookieString}\r\n`);
+  }
 
   await execFileAsync(
     FFMPEG_PATH,
     [
       "-user_agent",
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
-
       "-headers",
-      [
-        "Referer: https://www.youtube.com/\r\n",
-        "Origin: https://www.youtube.com\r\n",
-      ].join(""),
-
+      headers.join(""),
       "-reconnect",
       "1",
       "-reconnect_streamed",
       "1",
       "-reconnect_delay_max",
       "5",
-
       "-i",
       streamUrl,
-
       "-vn",
-
       "-codec:a",
       "libmp3lame",
-
       "-q:a",
       "2",
-
       "-y",
       mp3Path,
     ],
@@ -254,6 +254,7 @@ export const playController = async (req, res) => {
         const cleanTitle = sanitizeFilename(video.title);
         const outputId = `${cleanTitle}_${fileId}`;
 
+        // Meneruskan cookieString ke fungsi konversi
         const mp3Path = await convertStreamToMp3(
           streamUrl,
           outputId,
