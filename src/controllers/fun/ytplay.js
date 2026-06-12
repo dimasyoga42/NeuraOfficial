@@ -86,7 +86,7 @@ export const playController = async (req, res) => {
       "--dump-json",
       "--no-playlist",
       "--js-runtimes", "node",
-      "--cookies-from-chrome"
+      "--cookies-from-browser", "chrome"
     ];
 
     if (process.env.YT_COOKIES_FILE) {
