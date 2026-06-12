@@ -157,7 +157,7 @@ const downloadWithYtdlp = async (videoUrl, outputId) => {
   return { mp3Path, filename };
 };
 
-export const playControllers = async (req, res) => {
+export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
