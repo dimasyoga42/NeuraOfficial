@@ -11,6 +11,7 @@ const BASE_URL = (
 ).replace(/\/$/, "");
 const DOWNLOAD_DIR = path.resolve("public/downloads");
 const FFMPEG_PATH = process.env.FFMPEG_PATH ?? "/usr/bin/ffmpeg";
+const YTDLP_PATH = process.env.YTDLP_PATH ?? "/usr/local/bin/yt-dlp";
 
 if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
@@ -80,98 +81,56 @@ const findFirstVideo = (data) => {
   return null;
 };
 
-const extractAudioStreamUrl = (html) => {
-  const match = html.match(
-    /var ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|window|<\/script)/s,
-  );
-  if (!match?.[1]) throw new Error("ytInitialPlayerResponse tidak ditemukan");
+const sanitizeFilename = (title) =>
+  (title ?? "audio")
+    .replace(/[^\w\s\-]/g, "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .slice(0, 80);
 
-  let player;
-  try {
-    player = JSON.parse(match[1]);
-  } catch {
-    throw new Error("Gagal parse ytInitialPlayerResponse");
-  }
-
-  const formats = [
-    ...(player?.streamingData?.adaptiveFormats ?? []),
-    ...(player?.streamingData?.formats ?? []),
-  ];
-
-  const audioFormats = formats
-    .filter((f) => f.mimeType?.startsWith("audio/"))
-    .map((f) => {
-      if (f.url) return f;
-      if (f.signatureCipher) {
-        const params = new URLSearchParams(f.signatureCipher);
-        return { ...f, url: params.get("url") };
-      }
-      if (f.cipher) {
-        const params = new URLSearchParams(f.cipher);
-        return { ...f, url: params.get("url") };
-      }
-      return f;
-    })
-    .filter((f) => f.url)
-    .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
-
-  if (audioFormats.length === 0) {
-    throw new Error("Tidak ada stream audio ditemukan");
-  }
-
-  return audioFormats[0].url;
-};
-
-const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
+const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
   const mp3Path = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
 
-  const headerParts = [
-    "Referer: https://www.youtube.com/\r\n",
-    "Origin: https://www.youtube.com\r\n",
+  const args = [
+    "--no-playlist",
+    "--extract-audio",
+    "--audio-format",
+    "mp3",
+    "--audio-quality",
+    "2",
+    "--ffmpeg-location",
+    FFMPEG_PATH,
+    "--output",
+    mp3Path.replace(/\.mp3$/, ".%(ext)s"),
+    "--no-progress",
+    "--quiet",
+    "--no-warnings",
+    "--extractor-retries",
+    "3",
+    "--socket-timeout",
+    "30",
+    "--user-agent",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
   ];
 
   if (cookieString) {
-    headerParts.push(`Cookie: ${cookieString}\r\n`);
+    args.push("--add-header", `Cookie:${cookieString}`);
   }
 
-  const args = [
-    "-reconnect",
-    "1",
-    "-reconnect_streamed",
-    "1",
-    "-reconnect_delay_max",
-    "10",
-    "-reconnect_on_network_error",
-    "1",
-    "-user_agent",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
-    "-headers",
-    headerParts.join(""),
-    "-i",
-    streamUrl,
-    "-vn",
-    "-codec:a",
-    "libmp3lame",
-    "-q:a",
-    "2",
-    "-threads",
-    "2",
-    "-y",
-    mp3Path,
-  ];
+  args.push(videoUrl);
 
   try {
-    await execFileAsync(FFMPEG_PATH, args, {
+    await execFileAsync(YTDLP_PATH, args, {
       timeout: 600000,
       maxBuffer: 100 * 1024 * 1024,
     });
   } catch (err) {
     if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
-    throw new Error(`FFmpeg gagal: ${err.message}`);
+    throw new Error(`yt-dlp gagal: ${err.message}`);
   }
 
   if (!fs.existsSync(mp3Path)) {
-    throw new Error("File MP3 tidak terbuat setelah konversi");
+    throw new Error("File MP3 tidak terbuat setelah download");
   }
 
   const stat = fs.statSync(mp3Path);
@@ -182,13 +141,6 @@ const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
 
   return mp3Path;
 };
-
-const sanitizeFilename = (title) =>
-  (title ?? "audio")
-    .replace(/[^\w\s\-]/g, "")
-    .trim()
-    .replace(/\s+/g, "_")
-    .slice(0, 80);
 
 export const playControllers = async (req, res) => {
   try {
@@ -254,49 +206,27 @@ export const playControllers = async (req, res) => {
       description: video.description,
     };
 
-    let streamUrl = null;
-    try {
-      const videoRes = await fetch(video.url, {
-        headers: {
-          Cookie: cookieString,
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-      });
-
-      if (!videoRes.ok) throw new Error(`HTTP ${videoRes.status}`);
-
-      const videoHtml = await videoRes.text();
-      streamUrl = extractAudioStreamUrl(videoHtml);
-      console.log("[stream] URL ditemukan:", streamUrl?.slice(0, 80) + "...");
-    } catch (streamErr) {
-      console.error("[stream] Gagal ambil stream URL:", streamErr.message);
-    }
-
     let mp3Info = null;
-    if (streamUrl) {
-      try {
-        const fileId = randomUUID();
-        const cleanTitle = sanitizeFilename(video.title);
-        const outputId = `${cleanTitle}_${fileId}`;
+    try {
+      const fileId = randomUUID();
+      const cleanTitle = sanitizeFilename(video.title);
+      const outputId = `${cleanTitle}_${fileId}`;
 
-        const mp3Path = await convertStreamToMp3(
-          streamUrl,
-          outputId,
-          cookieString,
-        );
-        const filename = path.basename(mp3Path);
+      const mp3Path = await downloadWithYtdlp(
+        video.url,
+        outputId,
+        cookieString,
+      );
+      const filename = path.basename(mp3Path);
 
-        mp3Info = {
-          download_url: `${BASE_URL}/downloads/${filename}`,
-          filename,
-        };
-      } catch (ffmpegErr) {
-        console.error("[ffmpeg] Gagal convert MP3:", ffmpegErr.message);
-      }
+      mp3Info = {
+        download_url: `${BASE_URL}/downloads/${filename}`,
+        filename,
+      };
+
+      console.log("[yt-dlp] Berhasil:", filename);
+    } catch (dlErr) {
+      console.error("[yt-dlp] Gagal:", dlErr.message);
     }
 
     return res.status(200).json({
