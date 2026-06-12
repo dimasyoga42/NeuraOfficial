@@ -31,7 +31,7 @@ export const getRandomWaifu = async (req, res) => {
     const response = await axios.get(
       "https://neurapi.mochinime.cyou/api/etc/pin",
       {
-        params: { q: randomChar },
+        params: { q: `${randomChar} full body fans art` },
       },
     );
 
