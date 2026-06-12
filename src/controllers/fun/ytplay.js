@@ -73,6 +73,8 @@ const findFirstVideo = (data) => {
         duration: video.lengthText?.simpleText ?? null,
         views: video.viewCountText?.simpleText ?? null,
         channel: video.ownerText?.runs?.[0]?.text ?? null,
+        publishedTime: video.publishedTimeText?.simpleText ?? null,
+        description: video.descriptionSnippet?.runs?.[0]?.text ?? null,
         url: `https://www.youtube.com/watch?v=${video.videoId}`,
       };
     }
@@ -80,9 +82,8 @@ const findFirstVideo = (data) => {
   return null;
 };
 
-// ─── Ambil URL stream audio langsung dari ytInitialPlayerResponse ─
+// ─── Ambil URL stream audio dari ytInitialPlayerResponse ─────────
 const extractAudioStreamUrl = (html) => {
-  // Ambil ytInitialPlayerResponse dari HTML
   const match = html.match(
     /var ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|window|<\/script)/s,
   );
@@ -94,7 +95,6 @@ const extractAudioStreamUrl = (html) => {
     ...(player?.streamingData?.formats ?? []),
   ];
 
-  // Prioritas: audio/webm opus > audio/mp4 > audio lainnya
   const audioFormats = formats
     .filter((f) => f.mimeType?.startsWith("audio/") && f.url)
     .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
@@ -109,7 +109,6 @@ const extractAudioStreamUrl = (html) => {
 const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
   const mp3Path = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
 
-  // ffmpeg langsung baca dari URL stream YouTube, convert ke MP3
   await execFileAsync(
     FFMPEG_PATH,
     [
@@ -123,21 +122,19 @@ const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
       `Cookie: ${cookieString}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n`,
       "-i",
       streamUrl,
-      "-vn", // skip video
+      "-vn",
       "-ar",
-      "44100", // sample rate
+      "44100",
       "-ac",
-      "2", // stereo
+      "2",
       "-b:a",
-      "192k", // bitrate
+      "192k",
       "-f",
       "mp3",
-      "-y", // overwrite
+      "-y",
       mp3Path,
     ],
-    {
-      timeout: 120_000, // 2 menit max
-    },
+    { timeout: 120_000 },
   );
 
   return mp3Path;
@@ -203,48 +200,71 @@ export const playController = async (req, res) => {
         .json({ success: false, error: "Video tidak ditemukan" });
     }
 
-    // ── 2. Buka halaman video untuk ambil stream URL ───────────
-    const videoRes = await fetch(video.url, {
-      headers: {
-        Cookie: cookieString,
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
-
-    if (!videoRes.ok) {
-      return res
-        .status(500)
-        .json({ success: false, error: "Gagal membuka halaman video" });
-    }
-
-    const videoHtml = await videoRes.text();
-    const streamUrl = extractAudioStreamUrl(videoHtml);
-
-    // ── 3. Convert stream → MP3 ────────────────────────────────
-    const fileId = randomUUID();
-    const cleanTitle = sanitizeFilename(video.title);
-    const outputId = `${cleanTitle}_${fileId}`;
-
-    const mp3Path = await convertStreamToMp3(streamUrl, outputId, cookieString);
-    const filename = path.basename(mp3Path);
-    const downloadUrl = `${BASE_URL}/downloads/${filename}`;
-
-    return res.status(200).json({
-      success: true,
+    // Info dasar video — selalu ada di response meski MP3 gagal
+    const videoInfo = {
       title: video.title,
+      videoId: video.videoId,
       thumbnail: video.thumbnail,
       url: video.url,
       duration: video.duration,
       views: video.views,
       channel: video.channel,
-      mp3: {
-        download_url: downloadUrl,
-        filename,
-      },
+      publishedTime: video.publishedTime,
+      description: video.description,
+    };
+
+    // ── 2. Buka halaman video ──────────────────────────────────
+    let streamUrl = null;
+    try {
+      const videoRes = await fetch(video.url, {
+        headers: {
+          Cookie: cookieString,
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+
+      if (videoRes.ok) {
+        const videoHtml = await videoRes.text();
+        streamUrl = extractAudioStreamUrl(videoHtml);
+      }
+    } catch (streamErr) {
+      console.error("[stream] Gagal ambil stream URL:", streamErr.message);
+    }
+
+    // ── 3. Convert → MP3 (opsional, tidak gagalkan response) ──
+    let mp3Info = null;
+    if (streamUrl) {
+      try {
+        const fileId = randomUUID();
+        const cleanTitle = sanitizeFilename(video.title);
+        const outputId = `${cleanTitle}_${fileId}`;
+
+        const mp3Path = await convertStreamToMp3(
+          streamUrl,
+          outputId,
+          cookieString,
+        );
+        const filename = path.basename(mp3Path);
+
+        mp3Info = {
+          download_url: `${BASE_URL}downloads/${filename}`,
+          filename,
+        };
+      } catch (ffmpegErr) {
+        console.error("[ffmpeg] Gagal convert MP3:", ffmpegErr.message);
+      }
+    }
+
+    // ── 4. Response — selalu sukses selama video ditemukan ────
+    return res.status(200).json({
+      success: true,
+      ...videoInfo,
+      mp3: mp3Info ?? null,
+      mp3_status: mp3Info ? "ready" : "unavailable",
     });
   } catch (error) {
     return res.status(500).json({
