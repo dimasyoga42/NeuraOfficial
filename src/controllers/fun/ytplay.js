@@ -85,7 +85,8 @@ export const playController = async (req, res) => {
     const searchArgs = [
       "--dump-json",
       "--no-playlist",
-      "--js-runtimes", "nodejs"
+      "--js-runtimes", "node"
+      "--cookies-from-browser"
     ];
 
     if (process.env.YT_COOKIES_FILE) {
@@ -132,13 +133,13 @@ export const playController = async (req, res) => {
         "--extract-audio",
         "--audio-format", "mp3",
         "--audio-quality", "2",
-        "--js-runtimes", "nodejs",
+        "--js-runtimes", "node",
         "--output", mp3Path,
         "--no-playlist"
       ];
 
       if (process.env.YT_COOKIES_FILE) {
-        downloadArgs.push("--cookies", process.env.YT_COOKIES_FILE);
+        downloadArgs.push("--cookies-from-browser", process.env.YT_COOKIES_FILE);
       }
 
       downloadArgs.push(videoData.webpage_url);
