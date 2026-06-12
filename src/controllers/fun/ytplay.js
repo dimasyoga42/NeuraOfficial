@@ -106,35 +106,46 @@ const extractAudioStreamUrl = (html) => {
 };
 
 // ─── Convert stream audio → MP3 via ffmpeg ───────────────────────
-const convertStreamToMp3 = async (streamUrl, outputId, cookieString) => {
+const convertStreamToMp3 = async (streamUrl, outputId) => {
   const mp3Path = path.join(DOWNLOAD_DIR, `${outputId}.mp3`);
 
   await execFileAsync(
     FFMPEG_PATH,
     [
+      "-user_agent",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
+
+      "-headers",
+      [
+        "Referer: https://www.youtube.com/\r\n",
+        "Origin: https://www.youtube.com\r\n",
+      ].join(""),
+
       "-reconnect",
       "1",
       "-reconnect_streamed",
       "1",
       "-reconnect_delay_max",
       "5",
-      "-headers",
-      `Cookie: ${cookieString}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n`,
+
       "-i",
       streamUrl,
+
       "-vn",
-      "-ar",
-      "44100",
-      "-ac",
+
+      "-codec:a",
+      "libmp3lame",
+
+      "-q:a",
       "2",
-      "-b:a",
-      "192k",
-      "-f",
-      "mp3",
+
       "-y",
       mp3Path,
     ],
-    { timeout: 120_000 },
+    {
+      timeout: 300000,
+      maxBuffer: 50 * 1024 * 1024,
+    },
   );
 
   return mp3Path;
