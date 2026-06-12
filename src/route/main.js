@@ -5,6 +5,7 @@ import { kerangAjaib } from "../controllers/fun/kerang.js";
 import { Anime } from "../controllers/fun/anime.js";
 import { khodam } from "../controllers/fun/khodam.js";
 import { wellcome } from "../controllers/fun/wellcome.js";
+import { playController } from "../controllers/fun/ytplay.js";
 
 const main = express.Router();
 
@@ -13,4 +14,5 @@ main.get("/kerang", limiter, kerangAjaib);
 main.get("/anime", Anime);
 main.get("/khodam", khodam);
 main.get("/wellcome", wellcome);
+main.get("/play", playController);
 export default main;
