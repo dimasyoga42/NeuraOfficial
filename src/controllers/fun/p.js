@@ -10,7 +10,6 @@ const BASE_URL = (
   process.env.BASE_URL ?? "https://neurapi.mochinime.cyou"
 ).replace(/\/$/, "");
 const DOWNLOAD_DIR = path.resolve("public/downloads");
-const FFMPEG_PATH = process.env.FFMPEG_PATH ?? "/usr/bin/ffmpeg";
 const YTDLP_PATH =
   process.env.YTDLP_PATH ?? process.env.YT_DLP_PATH ?? "yt-dlp";
 
@@ -89,7 +88,17 @@ const sanitizeFilename = (title) =>
     .replace(/\s+/g, "_")
     .slice(0, 80);
 
-const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
+const buildEnvWithNode = () => {
+  const nodePath = path.dirname(process.execPath);
+  const currentPath = process.env.PATH ?? "";
+  const pathHasNode = currentPath.split(":").includes(nodePath);
+  return {
+    ...process.env,
+    PATH: pathHasNode ? currentPath : `${nodePath}:${currentPath}`,
+  };
+};
+
+const downloadWithYtdlp = async (videoUrl, outputId) => {
   const filename = `${outputId}.mp3`;
   const mp3Path = path.join(DOWNLOAD_DIR, filename);
 
@@ -102,12 +111,18 @@ const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
     "--output",
     mp3Path,
     "--no-playlist",
+    "--extractor-retries",
+    "3",
+    "--fragment-retries",
+    "3",
+    "--retry-sleep",
+    "3",
+    "--no-warnings",
   ];
 
-  if (process.env.YT_COOKIES_FILE) {
-    args.push("--cookies", process.env.YT_COOKIES_FILE);
-  } else if (cookieString) {
-    args.push("--add-header", `Cookie:${cookieString}`);
+  const cookiesFile = process.env.YT_COOKIES_FILE;
+  if (cookiesFile && fs.existsSync(cookiesFile)) {
+    args.push("--cookies", cookiesFile);
   }
 
   args.push(videoUrl);
@@ -116,6 +131,7 @@ const downloadWithYtdlp = async (videoUrl, outputId, cookieString) => {
     await execFileAsync(YTDLP_PATH, args, {
       timeout: 300000,
       maxBuffer: 50 * 1024 * 1024,
+      env: buildEnvWithNode(),
     });
   } catch (err) {
     if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
@@ -205,11 +221,7 @@ export const playControllers = async (req, res) => {
       const cleanTitle = sanitizeFilename(video.title);
       const outputId = `${cleanTitle}_${fileId}`;
 
-      const { filename } = await downloadWithYtdlp(
-        video.url,
-        outputId,
-        cookieString,
-      );
+      const { filename } = await downloadWithYtdlp(video.url, outputId);
 
       mp3Info = {
         download_url: `${BASE_URL}/downloads/${filename}`,
