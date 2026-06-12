@@ -1,81 +1,38 @@
-import express from "express";
-import fsSync from "fs";
-import fs from "fs/promises";
+import fs from "fs";
 import path from "path";
-import os from "os";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { randomUUID } from "crypto";
 
 const execFileAsync = promisify(execFile);
 
-// ─── Konfigurasi Lingkungan Peladen ──────────────────────────────
+// ─── Konfigurasi ────────────────────────────────────────────────
 const BASE_URL = process.env.BASE_URL ?? "https://neurapi.mochinime.cyou/";
+const DOWNLOAD_DIR = path.resolve("public/downloads");
+// Parameter ekskusi ini mengasumsikan yt-dlp telah terpasang pada variabel lingkungan sistem operasi
 const YT_DLP_PATH = process.env.YT_DLP_PATH ?? "/home/ubuntu/.local/bin/yt-dlp";
-const TMP_DIR = os.tmpdir();
 
-// ─── Utilitas Pembersihan Direktori Usang ────────────────────────
-const cleanOldDownloadsDirectory = async () => {
-  const downloadDir = path.resolve("public/downloads");
-  try {
-    const isAccessible = await fs.access(downloadDir).then(() => true).catch(() => false);
-    if (!isAccessible) return;
+// Inisialisasi direktori penyimpanan media
+if (!fs.existsSync(DOWNLOAD_DIR)) {
+  fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+}
 
-    const files = await fs.readdir(downloadDir);
-    if (files.length === 0) return;
-
-    const deletionPromises = files.map(async (file) => {
-      const filePath = path.join(downloadDir, file);
-      const fileStats = await fs.stat(filePath);
-      if (fileStats.isFile()) {
-        await fs.unlink(filePath);
-        return file;
-      }
-      return null;
-    });
-
-    const results = await Promise.all(deletionPromises);
-    const deletedFiles = results.filter((result) => result !== null);
-    console.log(`[Pemeliharaan] Total ${deletedFiles.length} berkas usang berhasil dibersihkan dari memori sekunder.`);
-  } catch (error) {
-    console.error("[Pemeliharaan] Terjadi anomali saat purifikasi direktori:", error.message);
-  }
-};
-
-// Eksekusi prosedur pemeliharaan secara asinkron saat peladen melakukan inisialisasi
-cleanOldDownloadsDirectory();
-
-// ─── Pengendali Pengunduhan Dinamis ──────────────────────────────
-export const downloadController = (req, res) => {
-  const { filename } = req.params;
-  const safeFilename = path.basename(filename);
-  const filePath = path.join(TMP_DIR, safeFilename);
-
-  if (!fsSync.existsSync(filePath)) {
-    return res.status(404).json({ success: false, error: "Berkas digital tidak ditemukan atau telah musnah setelah melewati masa retensi 20 menit" });
-  }
-
-  res.download(filePath, safeFilename, (err) => {
-    if (err && !res.headersSent) {
-      console.error("[Transmisi] Terjadi interupsi jaringan selama distribusi biner:", err.message);
-    }
-  });
-};
-
-// ─── Pengendali Utama Pemrosesan Media ───────────────────────────
+// ─── Controller ─────────────────────────────────────────────────
 export const playController = async (req, res) => {
   try {
     const { query } = req.query ?? {};
 
     if (!query || typeof query !== "string") {
-      return res.status(400).json({ success: false, error: "Parameter kueri wajib dideklarasikan" });
+      return res.status(400).json({ success: false, error: "Query wajib diisi" });
     }
 
     const keyword = query.trim();
     if (!keyword) {
-      return res.status(400).json({ success: false, error: "Parameter kueri tidak memenuhi standar validasi" });
+      return res.status(400).json({ success: false, error: "Query tidak valid" });
     }
 
+    // ── 1. Tahap Resolusi Metadata Asinkron ─────────────────────
+    // Spesifikasi ytsearch1: menginstruksikan modul untuk mengambil tepat satu data teratas
     const searchArgs = [
       "--dump-json",
       "--no-playlist",
@@ -84,11 +41,14 @@ export const playController = async (req, res) => {
 
     let videoData;
     try {
-      const { stdout } = await execFileAsync(YT_DLP_PATH, searchArgs, { maxBuffer: 50 * 1024 * 1024 });
+      const { stdout } = await execFileAsync(YT_DLP_PATH, searchArgs, {
+        maxBuffer: 50 * 1024 * 1024,
+      });
+      // Mengurai luaran standar menjadi struktur objek leksikal
       videoData = JSON.parse(stdout.trim());
     } catch (searchErr) {
-      console.error("[Resolusi] Kegagalan analitik metadata:", searchErr.message);
-      return res.status(404).json({ success: false, error: "Media yang dituju tidak teridentifikasi oleh sistem" });
+      console.error("[yt-dlp resolusi] Kegagalan analitik:", searchErr.message);
+      return res.status(404).json({ success: false, error: "Media tidak teridentifikasi atau akses jaringan ditolak" });
     }
 
     const videoInfo = {
@@ -103,6 +63,7 @@ export const playController = async (req, res) => {
       description: videoData.description?.substring(0, 150) || null,
     };
 
+    // ── 2. Tahap Pengunduhan dan Pemrosesan Lanjutan ────────────
     let mp3Info = null;
     try {
       const fileId = randomUUID();
@@ -111,9 +72,9 @@ export const playController = async (req, res) => {
         .trim()
         .replace(/\s+/g, "_")
         .slice(0, 80);
-
+      
       const filename = `${cleanTitle}_${fileId}.mp3`;
-      const mp3Path = path.join(TMP_DIR, filename);
+      const mp3Path = path.join(DOWNLOAD_DIR, filename);
 
       const downloadArgs = [
         "--extract-audio",
@@ -124,6 +85,7 @@ export const playController = async (req, res) => {
         videoData.webpage_url
       ];
 
+      // Integrasi kredensial jaringan jika diperlukan untuk melewati restriksi usia peladen
       if (process.env.YT_COOKIES_FILE) {
         downloadArgs.push("--cookies", process.env.YT_COOKIES_FILE);
       }
@@ -133,26 +95,15 @@ export const playController = async (req, res) => {
         maxBuffer: 50 * 1024 * 1024,
       });
 
-      const DESTRUCTION_DELAY = 20 * 60 * 1000;
-      setTimeout(() => {
-        try {
-          if (fsSync.existsSync(mp3Path)) {
-            fsSync.unlinkSync(mp3Path);
-            console.log(`[Manajemen Memori] Siklus hidup berkas berakhir, pemusnahan berhasil dieksekusi: ${filename}`);
-          }
-        } catch (unlinkErr) {
-          console.error("[Manajemen Memori] Anomali pada eksekusi penghapusan tertunda:", unlinkErr.message);
-        }
-      }, DESTRUCTION_DELAY);
-
       mp3Info = {
-        download_url: `${BASE_URL}api/download/${filename}`,
+        download_url: `${BASE_URL}downloads/${filename}`,
         filename,
       };
     } catch (downloadErr) {
-      console.error("[Transkoding] Interupsi pada utilitas pihak ketiga:", downloadErr.message);
+      console.error("[yt-dlp transkoding] Interupsi sistem:", downloadErr.message);
     }
 
+    // ── 3. Konstruksi Respons RESTful ───────────────────────────
     return res.status(200).json({
       success: true,
       ...videoInfo,
@@ -163,7 +114,7 @@ export const playController = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error?.message ?? "Terjadi malfungsi komputasi pada arsitektur utama peladen",
+      error: error?.message ?? "Terjadi anomali komputasi yang tidak terduga pada peladen utama",
     });
   }
 };
