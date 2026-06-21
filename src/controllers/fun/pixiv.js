@@ -8,63 +8,49 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ─── HELPER COOKIE ─────────────────────────────────────────
 const buildCookie = (cookies) =>
   Object.entries(cookies)
+    .filter(([, v]) => v)
     .map(([k, v]) => `${k}=${v}`)
     .join("; ");
 
-// ─── COOKIE ────────────────────────────────────────────────
 const COOKIE = buildCookie({
   PHPSESSID: process.env.PHPSESSID,
   yuid_b: process.env.YUID,
   device_token: process.env.TOKEN,
 });
 
-// ─── AXIOS CLIENT ──────────────────────────────────────────
 const client = axios.create({
   baseURL: "https://www.pixiv.net",
-  timeout: 20000,
+  timeout: 30000,
   headers: {
     Cookie: COOKIE,
+    Referer: "https://www.pixiv.net/",
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-    Referer: "https://www.pixiv.net/",
     Accept: "application/json",
   },
 });
 
-// ─── DELAY ─────────────────────────────────────────────────
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// ─── HELPER IMAGE VARIANTS ─────────────────────────────────
-const buildImageVariants = (url) => {
-  if (!url) return [];
-
-  return [
-    url, // master default (AMAN)
-    url
-      .replace("img-master", "img-original")
-      .replace(/_p(\d+)_master1200\.jpg/, "_p$1.jpg"),
-  ];
-};
-
-// ─── FETCH IMAGE (ANTI 403) ────────────────────────────────
 const fetchImage = async (url) => {
-  return axios.get(url, {
-    responseType: "arraybuffer",
+  return axios({
+    method: "GET",
+    url,
+    responseType: "stream",
+    timeout: 30000,
     headers: {
       Referer: "https://www.pixiv.net/",
+      Cookie: COOKIE,
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-      Accept: "image/*,*/*",
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     },
-    timeout: 20000,
     validateStatus: () => true,
   });
 };
 
-// ─── SEARCH ────────────────────────────────────────────────
 export const searchPixiv = async (req, res) => {
   try {
     const {
@@ -92,8 +78,8 @@ export const searchPixiv = async (req, res) => {
     const results = items.map((item) => ({
       id: item.id,
       title: item.title,
-      image: item.url, // pakai master
-      proxy: `/pixiv/image?url=${encodeURIComponent(item.url)}`,
+      thumbnail: item.url,
+      detail: `/pixiv/detail/${item.id}`,
       user: item.userName,
       user_id: item.userId,
     }));
@@ -112,22 +98,43 @@ export const searchPixiv = async (req, res) => {
   }
 };
 
-// ─── DETAIL ────────────────────────────────────────────────
 export const detailPixiv = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data } = await client.get(`/ajax/illust/${id}`);
-    const body = data?.body;
+    const [illust, pages] = await Promise.all([
+      client.get(`/ajax/illust/${id}`),
+      client.get(`/ajax/illust/${id}/pages`),
+    ]);
+
+    const body = illust.data.body;
+
+    const images = pages.data.body.map((img, index) => ({
+      page: index,
+      original: img.urls.original,
+      regular: img.urls.regular,
+      small: img.urls.small,
+      thumb: img.urls.thumb,
+      proxy: `/pixiv/image?url=${encodeURIComponent(img.urls.original)}`,
+    }));
 
     res.json({
       success: true,
       id: body.id,
       title: body.title,
       description: body.description,
-      tags: body.tags?.tags || [],
-      user: body.userName,
-      images: body.urls,
+      createDate: body.createDate,
+      uploadDate: body.uploadDate,
+      pageCount: body.pageCount,
+      bookmarkCount: body.bookmarkCount,
+      likeCount: body.likeCount,
+      viewCount: body.viewCount,
+      tags: body.tags.tags.map((v) => v.tag),
+      user: {
+        id: body.userId,
+        name: body.userName,
+      },
+      images,
     });
   } catch (err) {
     res.status(500).json({
@@ -137,60 +144,57 @@ export const detailPixiv = async (req, res) => {
   }
 };
 
-// ─── PROXY IMAGE (FIX 404 + FORBIDDEN) ─────────────────────
 export const proxyImage = async (req, res) => {
   try {
     let { url } = req.query;
 
     if (!url) {
-      return res.status(400).json({ error: "url required" });
+      return res.status(400).json({
+        success: false,
+        error: "url required",
+      });
     }
 
     url = decodeURIComponent(url);
 
-    const variants = buildImageVariants(url);
+    const response = await fetchImage(url);
 
-    let response;
+    console.log("PIXIV URL:", url);
+    console.log("STATUS:", response.status);
+    console.log("TYPE:", response.headers["content-type"]);
 
-    for (const u of variants) {
-      try {
-        response = await fetchImage(u);
-
-        if (response.status === 200) {
-          console.log("✓ SUCCESS:", u);
-          break;
-        } else {
-          console.log("✗ FAIL:", u, response.status);
-        }
-      } catch {
-        console.log("✗ ERROR:", u);
-      }
-    }
-
-    if (!response || response.status !== 200) {
-      return res.status(404).json({
-        error: "image not found",
+    if (response.status !== 200) {
+      return res.status(response.status).json({
+        success: false,
+        error: `Pixiv returned ${response.status}`,
       });
     }
 
-    res.setHeader("Content-Type", response.headers["content-type"]);
-    res.setHeader("Cache-Control", "public, max-age=86400"); // cache 1 hari
+    res.setHeader(
+      "Content-Type",
+      response.headers["content-type"] || "image/jpeg",
+    );
+
+    res.setHeader("Cache-Control", "public, max-age=86400");
 
     response.data.pipe(res);
   } catch (err) {
     res.status(500).json({
+      success: false,
       error: err.message,
     });
   }
 };
 
-// ─── BULK DOWNLOAD ─────────────────────────────────────────
 export const bulkDownload = async (req, res) => {
   try {
     const { query = "anime", limit = 10 } = req.body;
 
     const dir = path.join(__dirname, "downloads", query);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
     const { data } = await client.get(
       `/ajax/search/artworks/${encodeURIComponent(query)}`,
@@ -211,32 +215,44 @@ export const bulkDownload = async (req, res) => {
     let failed = 0;
 
     for (let i = 0; i < Math.min(limit, items.length); i++) {
-      const item = items[i];
+      try {
+        const id = items[i].id;
 
-      const variants = buildImageVariants(item.url);
+        const pages = await client.get(`/ajax/illust/${id}/pages`);
 
-      let downloaded = false;
+        const imageUrl = pages.data.body?.[0]?.urls?.original;
 
-      for (const u of variants) {
-        try {
-          const img = await fetchImage(u);
+        if (!imageUrl) {
+          failed++;
+          continue;
+        }
 
-          if (img.status !== 200) continue;
+        const image = await axios({
+          method: "GET",
+          url: imageUrl,
+          responseType: "arraybuffer",
+          headers: {
+            Referer: "https://www.pixiv.net/",
+            Cookie: COOKIE,
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+          },
+        });
 
-          const file = path.join(dir, `${item.id}.jpg`);
-          fs.writeFileSync(file, img.data);
+        const ext = path.extname(imageUrl.split("?")[0]) || ".jpg";
 
-          success++;
-          downloaded = true;
+        const file = path.join(dir, `${id}${ext}`);
 
-          console.log(`✓ ${item.id}`);
-          break;
-        } catch {}
+        fs.writeFileSync(file, image.data);
+
+        success++;
+
+        console.log(`✓ ${id}`);
+
+        await delay(1000);
+      } catch {
+        failed++;
       }
-
-      if (!downloaded) failed++;
-
-      await delay(800);
     }
 
     res.json({
