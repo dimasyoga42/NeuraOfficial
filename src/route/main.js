@@ -7,6 +7,12 @@ import { khodam } from "../controllers/fun/khodam.js";
 import { wellcome } from "../controllers/fun/wellcome.js";
 import { playControllers } from "../controllers/fun/ytplay.js";
 import { pinterestSearch } from "../controllers/fun/pin.js";
+import {
+  bulkDownload,
+  detailPixiv,
+  proxyImage,
+  searchPixiv,
+} from "../controllers/fun/pixiv.js";
 
 const main = express.Router();
 
@@ -17,4 +23,8 @@ main.get("/khodam", khodam);
 main.get("/wellcome", wellcome);
 main.get("/play", playControllers);
 main.get("/pin", pinterestSearch);
+main.get("/pixiv/search", searchPixiv);
+main.get("/pixiv/detail/:id", detailPixiv);
+main.get("/pixiv/image", proxyImage);
+main.post("/pixiv/download", bulkDownload);
 export default main;
