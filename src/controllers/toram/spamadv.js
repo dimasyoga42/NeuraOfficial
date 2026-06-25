@@ -886,6 +886,20 @@ const MQ = [
     episode: 127,
     exp: 252100000,
   },
+  {
+    title: "Freedos's Thoughts",
+    boss: "-",
+    chapter: 16,
+    episode: 128,
+    exp: 141700000,
+  },
+  {
+    title: "Chaos in the Valley",
+    boss: "kipina",
+    chapter: 16,
+    episode: 129,
+    exp: 293700000,
+  },
 ];
 
 const MAX_LEVEL = 320;
@@ -922,6 +936,11 @@ export const spamadv = (req, res) => {
       (q) => q.chapter >= chapterFrom && q.chapter <= chapterTo,
     ).reduce((a, b) => a + b.exp, 0);
 
+    const questValue = MQ.filter(
+      (q) => q.chapter >= chapterFrom && q.chapter <= chapterTo,
+    ).length;
+
+    const skipmq = questValue * 500000;
     let currentXP =
       level >= MAX_LEVEL ? 0 : Math.floor((percent / 100) * needXP(level));
 
@@ -973,6 +992,7 @@ export const spamadv = (req, res) => {
       startPercent,
       targetLevel,
       runs,
+      mqcost: skipmq,
       reachedTarget: level >= targetLevel,
       finalLevel: level,
       finalPercent,
