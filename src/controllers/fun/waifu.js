@@ -1610,6 +1610,11 @@ const animeGirlCharacters = [
   "Noel ET",
 ];
 
+function toFullResImage(url) {
+  if (!url) return url;
+  return url.replace(/\/c\/\d+x\d+_\d+_[a-zA-Z0-9]+\//, "/");
+}
+
 export const getRandomWaifu = async (req, res) => {
   try {
     // Pick karakter random
@@ -1620,13 +1625,10 @@ export const getRandomWaifu = async (req, res) => {
 
     // Fetch dari API
     const response = await axios.get(
-      "https://neurapi.mochinime.cyou/api/etc/pin",
-      {
-        params: { q: `${randomChar} full body fans art` },
-      },
+      `https://neurapi.mochinime.cyou/api/etc/pixiv/search?query=${encodeURIComponent(randomChar)}&page=${Math.floor(Math.random() * 60) + 1}`,
     );
 
-    const results = response.data?.results;
+    const results = response.data?.data;
 
     if (!results || results.length === 0) {
       return res.status(404).json({
@@ -1641,10 +1643,11 @@ export const getRandomWaifu = async (req, res) => {
     return res.json({
       success: true,
       character: randomChar,
-      image: randomImage.image,
-      link: randomImage.link,
-      width: randomImage.width,
-      height: randomImage.height,
+      image: `https://neurapi.mochinime.cyou/api/etc/pixiv/image?url=${encodeURIComponent(toFullResImage(randomImage.thumbnail))}`,
+      link: `https://pixiv.net${randomImage.detail}`,
+      title: randomImage.title,
+      user: randomImage.user,
+      user_id: randomImage.user_id,
     });
   } catch (error) {
     console.error("Error fetching waifu:", error.message);
