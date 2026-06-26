@@ -1648,7 +1648,7 @@ async function fetchPixivDetail(id) {
 }
 
 export const getRandomWaifu = async (req, res) => {
-  const MAX_ATTEMPTS = 5;
+  const MAX_ATTEMPTS = 100;
 
   try {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
