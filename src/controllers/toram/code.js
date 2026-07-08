@@ -135,10 +135,31 @@ async function sendCommandAndWaitReply(
 
 /**
  * Parsing balasan ">skilltree" (tanpa nama) -> daftar kategori & skill tree.
+ * Discord embed biasanya menyimpan tiap kategori (WEAPON, BUFF, dst) sebagai
+ * field terpisah (embed.fields), bukan menyatu di description. Kita cek itu
+ * dulu, baru fallback ke parsing description kalau fields kosong.
  * @returns {Array<{category: string, treeName: string}>}
  */
 function parseSkillTreeIndex(message) {
   const embed = message.embeds?.[0];
+  const fields = embed?.fields || [];
+
+  if (fields.length > 0) {
+    const result = [];
+    for (const field of fields) {
+      const category = (field.name || "").replace(/:\s*$/, "").trim();
+      const lines = (field.value || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      for (const treeName of lines) {
+        result.push({ category, treeName });
+      }
+    }
+    if (result.length > 0) return result;
+  }
+
+  // Fallback: parsing dari description (format lama, semua jadi satu blok teks)
   const description = embed?.description || message.content || "";
   const lines = description.split("\n").map((l) => l.trim());
 
@@ -168,6 +189,27 @@ function parseSkillTreeIndex(message) {
  */
 function parseSkillTreeDetail(message) {
   const embed = message.embeds?.[0];
+  const fields = embed?.fields || [];
+  const headerRegex = /^\[(.+?)\]\s*(.+?):?\s*$/;
+
+  // Coba parsing dari fields dulu: field.name = "[WEAPON] Barehand Skills:"
+  if (fields.length > 0) {
+    for (const field of fields) {
+      const fieldName = (field.name || "").replace(/^\*\*|\*\*$/g, "").trim();
+      const headerMatch = fieldName.match(headerRegex);
+      if (headerMatch) {
+        const category = headerMatch[1].trim();
+        const treeName = headerMatch[2].trim();
+        const skills = (field.value || "")
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+        return { category, treeName, skills };
+      }
+    }
+  }
+
+  // Fallback: parsing dari description (format lama)
   const description = embed?.description || message.content || "";
   const lines = description.split("\n").map((l) => l.trim());
 
@@ -176,12 +218,12 @@ function parseSkillTreeDetail(message) {
   const skills = [];
   let insideList = false;
 
-  const headerRegex = /^\*\*\[(.+?)\]\s*(.+?):?\*\*$/;
+  const descHeaderRegex = /^\*\*\[(.+?)\]\s*(.+?):?\*\*$/;
 
   for (const line of lines) {
     if (!line) continue;
 
-    const headerMatch = line.match(headerRegex);
+    const headerMatch = line.match(descHeaderRegex);
     if (headerMatch) {
       category = headerMatch[1].trim();
       treeName = headerMatch[2].replace(/:$/, "").trim();
@@ -373,7 +415,8 @@ export async function runFullScrape(channelId, botUserId) {
 // POST /scrape/skilltree
 // Body: { "channelId": "1463335655487836180", "botUserId": "xxxxx" (opsional) }
 export function startScrapeHandler(req, res) {
-  const { channelId, botUserId } = req.query;
+  const body = req.body || {};
+  const { channelId, botUserId } = body;
 
   if (!channelId) {
     return res.status(400).json({
@@ -403,6 +446,39 @@ export function startScrapeHandler(req, res) {
 // GET /scrape/status
 export function getScrapeStatusHandler(req, res) {
   res.json({ success: true, data: scrapeState });
+}
+
+// POST /scrape/debug
+// Body: { "channelId": "1463335655487836180", "botUserId": "xxxxx" (opsional) }
+// Kirim ">skilltree" dan kembalikan embed mentah + hasil parsing, TANPA lanjut
+// ke Supabase. Pakai ini untuk verifikasi format sebelum full scrape.
+export async function debugSkillTreeIndexHandler(req, res) {
+  const body = req.query || {};
+  const { channelId, botUserId } = body;
+
+  if (!channelId) {
+    return res.status(400).json({
+      success: false,
+      message: "Field 'channelId' wajib diisi.",
+    });
+  }
+
+  try {
+    const reply = await sendCommandAndWaitReply(channelId, ">skilltree", {
+      expectAuthorId: botUserId,
+    });
+    const parsed = parseSkillTreeIndex(reply);
+
+    res.json({
+      success: true,
+      parsedCount: parsed.length,
+      parsed,
+      rawEmbed: reply.embeds?.[0] ?? null,
+      rawContent: reply.content,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 }
 
 // ===================== ROUTES (contoh pendaftaran) =====================
