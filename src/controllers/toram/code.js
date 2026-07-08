@@ -12,7 +12,9 @@ if (!TOKEN) {
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY; // pakai service_role key (server-side)
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("SUPABASE_URL atau SUPABASE_SERVICE_KEY tidak ditemukan di .env");
+  console.error(
+    "SUPABASE_URL atau SUPABASE_SERVICE_KEY tidak ditemukan di .env",
+  );
   process.exit(1);
 }
 
@@ -85,7 +87,9 @@ async function sendMessageToChannel(channelId, content) {
 async function getRecentMessages(channelId, { limit = 10, after } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (after) params.set("after", after);
-  const data = await discord(`/channels/${channelId}/messages?${params.toString()}`);
+  const data = await discord(
+    `/channels/${channelId}/messages?${params.toString()}`,
+  );
   return Array.isArray(data) ? data : [];
 }
 
@@ -208,7 +212,8 @@ function parseSkillDetail(message) {
   let tier = null;
   for (const field of fields) {
     const fieldName = (field.name || "").toLowerCase();
-    if (fieldName.includes("skill tree")) skillTree = field.value?.trim() ?? null;
+    if (fieldName.includes("skill tree"))
+      skillTree = field.value?.trim() ?? null;
     if (fieldName.includes("tier")) tier = field.value?.trim() ?? null;
   }
 
@@ -224,24 +229,30 @@ async function upsertSkillTree({ category, name, rawSkillNames }) {
       { category, name, raw_skill_names: rawSkillNames },
       { onConflict: "name" },
     );
-  if (error) throw new Error(`Supabase upsert skill_trees gagal: ${error.message}`);
+  if (error)
+    throw new Error(`Supabase upsert skill_trees gagal: ${error.message}`);
 }
 
-async function upsertSkill({ name, skillTree, category, tier, description, rawEmbed }) {
-  const { error } = await supabase
-    .from("skills")
-    .upsert(
-      {
-        name,
-        skill_tree: skillTree,
-        category,
-        tier,
-        description,
-        raw_embed: rawEmbed,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "name" },
-    );
+async function upsertSkill({
+  name,
+  skillTree,
+  category,
+  tier,
+  description,
+  rawEmbed,
+}) {
+  const { error } = await supabase.from("skills").upsert(
+    {
+      name,
+      skill_tree: skillTree,
+      category,
+      tier,
+      description,
+      raw_embed: rawEmbed,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "name" },
+  );
   if (error) throw new Error(`Supabase upsert skills gagal: ${error.message}`);
 }
 
@@ -362,8 +373,7 @@ export async function runFullScrape(channelId, botUserId) {
 // POST /scrape/skilltree
 // Body: { "channelId": "1463335655487836180", "botUserId": "xxxxx" (opsional) }
 export function startScrapeHandler(req, res) {
-  const body = req.body || {};
-  const { channelId, botUserId } = body;
+  const { channelId, botUserId } = req.query;
 
   if (!channelId) {
     return res.status(400).json({
@@ -375,7 +385,8 @@ export function startScrapeHandler(req, res) {
   if (scrapeState.running) {
     return res.status(409).json({
       success: false,
-      message: "Scraping lain sedang berjalan. Cek progress di GET /scrape/status.",
+      message:
+        "Scraping lain sedang berjalan. Cek progress di GET /scrape/status.",
     });
   }
 
