@@ -13,10 +13,8 @@ import {
   proxyImage,
   searchPixiv,
 } from "../controllers/fun/pixiv.js";
-import {
-  getRecentMessagesHandler,
-  startScrapeHandler,
-} from "../controllers/toram/code.js";
+import { startScrapeHandler } from "../controllers/toram/code.js";
+import { getRecentMessagesHandler } from "../controllers/toram/c.js";
 
 const main = express.Router();
 
