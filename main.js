@@ -16,6 +16,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+app.use(express.json());
 app.use("/api/etc", main);
 app.use("/api/toram", toram);
 app.use("/downloads", express.static(path.resolve("public/downloads")));
