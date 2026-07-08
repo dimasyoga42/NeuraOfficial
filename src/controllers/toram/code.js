@@ -415,7 +415,7 @@ export async function runFullScrape(channelId, botUserId) {
 // POST /scrape/skilltree
 // Body: { "channelId": "1463335655487836180", "botUserId": "xxxxx" (opsional) }
 export function startScrapeHandler(req, res) {
-  const body = req.body || {};
+  const body = req.query || {};
   const { channelId, botUserId } = body;
 
   if (!channelId) {
