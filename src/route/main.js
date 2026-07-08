@@ -13,7 +13,10 @@ import {
   proxyImage,
   searchPixiv,
 } from "../controllers/fun/pixiv.js";
-import { startScrapeHandler } from "../controllers/toram/code.js";
+import {
+  getScrapeStatusHandler,
+  startScrapeHandler,
+} from "../controllers/toram/code.js";
 import { getRecentMessagesHandler } from "../controllers/toram/c.js";
 
 const main = express.Router();
@@ -31,4 +34,5 @@ main.get("/pixiv/image", proxyImage);
 main.post("/pixiv/download", bulkDownload);
 main.get("/code/:channelId", getRecentMessagesHandler);
 main.get("/sc", startScrapeHandler);
+main.get("/status", getScrapeStatusHandler);
 export default main;
